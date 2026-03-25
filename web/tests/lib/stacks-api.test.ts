@@ -116,18 +116,18 @@ describe('stacks-api', () => {
       } as any);
       vi.mocked(cvToValue).mockReturnValueOnce(3);
 
-      // Mock getPool calls
+      // Mock getPool calls - cvToValue(result, true) returns plain readable values
       const mockPoolData = {
         title: 'Pool 0',
         description: 'Desc',
         creator: 'ST123',
         'outcome-a-name': 'A',
         'outcome-b-name': 'B',
-        'total-a': { type: 1, value: 1000000n },
-        'total-b': { type: 1, value: 2000000n },
-        settled: { type: 3, value: false },
-        'winning-outcome': { type: 0, value: null },
-        expiry: { type: 1, value: 1000n },
+        'total-a': 1000000n,
+        'total-b': 2000000n,
+        settled: false,
+        'winning-outcome': null,
+        expiry: 1000n,
       };
 
       vi.mocked(fetchCallReadOnlyFunction).mockResolvedValue({

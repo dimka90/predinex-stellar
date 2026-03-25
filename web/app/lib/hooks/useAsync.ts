@@ -53,7 +53,8 @@ export function useAsync<T>(
 
   useEffect(() => {
     if (immediate) {
-      execute();
+      const timer = setTimeout(() => execute(), 0);
+      return () => clearTimeout(timer);
     }
   }, [execute, immediate]);
 

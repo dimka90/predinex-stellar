@@ -134,6 +134,7 @@ npm run build
 **Smart Contracts:**
 ```bash
 cd contracts/predinex
+cargo fmt
 cargo fmt --check
 cargo clippy -- -D warnings
 cargo test

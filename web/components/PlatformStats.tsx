@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getTotalVolume, getMarkets } from '@/lib/stacks-api';
+import { getTotalVolume, getMarkets } from '@/app/lib/stacks-api';
 import { BarChart3, Users, Layers, Activity } from 'lucide-react';
 import Card from './ui/Card';
 

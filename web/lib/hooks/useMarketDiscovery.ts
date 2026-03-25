@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Pool, getMarkets } from '../stacks-api';
+import { Pool, getMarkets } from '@/app/lib/stacks-api';
 
 export function useMarketDiscovery() {
   const [allMarkets, setAllMarkets] = useState<Pool[]>([]);

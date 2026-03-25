@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pool } from '../lib/stacks-api';
+import { Pool } from '@/app/lib/stacks-api';
 
 export default function BettingSection({ pool, poolId }: { pool: Pool, poolId: number }) {
     const [selectedOutcome, setSelectedOutcome] = useState<'A' | 'B' | null>(null);
@@ -33,7 +33,7 @@ export default function BettingSection({ pool, poolId }: { pool: Pool, poolId: n
                 />
             </div>
             
-            <button className="w-full py-4 bg-gradient-to-r from-primary to-purple-600 rounded-lg font-bold hover:opacity-90 transition-opacity">
+            <button className="w-full py-4 bg-linear-to-r from-primary to-purple-600 rounded-lg font-bold hover:opacity-90 transition-opacity">
                 Place Bet
             </button>
         </div>

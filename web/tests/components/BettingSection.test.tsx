@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import BettingSection from '../../app/components/BettingSection';
 import * as StacksProvider from '../../app/components/StacksProvider';
 import * as StacksConnect from '@stacks/connect';
+import { useToast } from '../../providers/ToastProvider';
 
 // Mock dependencies
 vi.mock('../../app/components/StacksProvider', () => ({
@@ -12,6 +13,10 @@ vi.mock('../../app/components/StacksProvider', () => ({
 
 vi.mock('@stacks/connect', () => ({
   openContractCall: vi.fn(),
+}));
+
+vi.mock('../../providers/ToastProvider', () => ({
+  useToast: vi.fn(),
 }));
 
 const mockPool = {
@@ -24,23 +29,31 @@ const mockPool = {
   totalA: 1000000,
   totalB: 2000000,
   settled: false,
-  winningOutcome: null,
+  winningOutcome: undefined,
   expiry: 1000,
+  status: 'active' as const,
 };
 
 describe('BettingSection', () => {
+  const showToast = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock window.alert
-    window.alert = vi.fn();
+    vi.mocked(useToast).mockReturnValue({
+      showToast,
+    });
   });
 
   it('renders betting section with pool information', () => {
     vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } },
+      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
+      userSession: {} as any,
+      setUserData: vi.fn(),
+      openWalletModal: vi.fn(),
+      isLoading: false,
       authenticate: vi.fn(),
       signOut: vi.fn(),
-    });
+    } as any);
 
     render(<BettingSection pool={mockPool} poolId={0} />);
 
@@ -53,9 +66,13 @@ describe('BettingSection', () => {
     const authenticate = vi.fn();
     vi.mocked(StacksProvider.useStacks).mockReturnValue({
       userData: null,
+      userSession: {} as any,
+      setUserData: vi.fn(),
+      openWalletModal: vi.fn(),
+      isLoading: false,
       authenticate,
       signOut: vi.fn(),
-    });
+    } as any);
 
     render(<BettingSection pool={mockPool} poolId={0} />);
 
@@ -65,10 +82,14 @@ describe('BettingSection', () => {
 
   it('validates bet amount before placing bet', async () => {
     vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } },
+      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
+      userSession: {} as any,
+      setUserData: vi.fn(),
+      openWalletModal: vi.fn(),
+      isLoading: false,
       authenticate: vi.fn(),
       signOut: vi.fn(),
-    });
+    } as any);
 
     const user = userEvent.setup();
     render(<BettingSection pool={mockPool} poolId={0} />);
@@ -77,18 +98,23 @@ describe('BettingSection', () => {
     const betButton = screen.getByText(/Bet on Outcome A/i);
     await user.click(betButton);
 
-    expect(window.alert).toHaveBeenCalledWith(
-      'Please enter a valid bet amount greater than 0.'
+    expect(showToast).toHaveBeenCalledWith(
+      'Please enter a valid bet amount greater than 0.',
+      'error'
     );
     expect(vi.mocked(StacksConnect.openContractCall)).not.toHaveBeenCalled();
   });
 
   it('validates minimum bet amount', async () => {
     vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } },
+      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
+      userSession: {} as any,
+      setUserData: vi.fn(),
+      openWalletModal: vi.fn(),
+      isLoading: false,
       authenticate: vi.fn(),
       signOut: vi.fn(),
-    });
+    } as any);
 
     const user = userEvent.setup();
     render(<BettingSection pool={mockPool} poolId={0} />);
@@ -99,16 +125,20 @@ describe('BettingSection', () => {
     const betButton = screen.getByText(/Bet on Outcome A/i);
     await user.click(betButton);
 
-    expect(window.alert).toHaveBeenCalledWith('Minimum bet amount is 0.1 STX.');
+    expect(showToast).toHaveBeenCalledWith('Minimum bet amount is 0.1 STX.', 'error');
     expect(vi.mocked(StacksConnect.openContractCall)).not.toHaveBeenCalled();
   });
 
   it('calls openContractCall with correct parameters when placing bet', async () => {
     vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } },
+      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
+      userSession: {} as any,
+      setUserData: vi.fn(),
+      openWalletModal: vi.fn(),
+      isLoading: false,
       authenticate: vi.fn(),
       signOut: vi.fn(),
-    });
+    } as any);
 
     vi.mocked(StacksConnect.openContractCall).mockResolvedValue({} as any);
 
@@ -137,10 +167,14 @@ describe('BettingSection', () => {
 
   it('disables buttons while betting is in progress', async () => {
     vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } },
+      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
+      userSession: {} as any,
+      setUserData: vi.fn(),
+      openWalletModal: vi.fn(),
+      isLoading: false,
       authenticate: vi.fn(),
       signOut: vi.fn(),
-    });
+    } as any);
 
     // Make openContractCall hang
     vi.mocked(StacksConnect.openContractCall).mockImplementation(

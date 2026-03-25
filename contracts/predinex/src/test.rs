@@ -45,7 +45,7 @@ fn test_place_bet() {
     let token = token::Client::new(&env, &token_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
 
-    client.initialize(&token_id);
+    client.initialize(&token_id.address());
 
     let creator = Address::generate(&env);
     let user = Address::generate(&env);
@@ -88,7 +88,7 @@ fn test_settle_and_claim() {
     let token = token::Client::new(&env, &token_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id);
 
-    client.initialize(&token_id);
+    client.initialize(&token_id.address());
 
     let creator = Address::generate(&env);
     let user1 = Address::generate(&env);

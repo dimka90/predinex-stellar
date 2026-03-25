@@ -165,18 +165,14 @@ export class TransactionService {
    */
   async broadcastTransaction(transaction: any): Promise<TransactionResult> {
     try {
-      // @ts-ignore
       const broadcastResult = await broadcastTransaction(transaction);
 
-      // @ts-ignore
-      if (broadcastResult.error) {
-        // @ts-ignore
-        throw new Error(`Broadcast failed: ${broadcastResult.error}`);
+      if ((broadcastResult as any).error) {
+        throw new Error(`Broadcast failed: ${(broadcastResult as any).error}`);
       }
 
       return {
-        // @ts-ignore
-        txId: broadcastResult.txid,
+        txId: (broadcastResult as any).txid || (broadcastResult as any).tx_id,
         transaction,
         broadcastResult,
       };
@@ -254,8 +250,7 @@ export class TransactionService {
     details?: any;
   }> {
     try {
-      // @ts-ignore
-      const response = await fetch(`${this.network.coreApiUrl}/extended/v1/tx/${txId}`);
+      const response = await fetch(`${(this.network as any).coreApiUrl || (this.network as any).baseUrl}/extended/v1/tx/${txId}`);
 
       if (!response.ok) {
         if (response.status === 404) {

@@ -1,6 +1,7 @@
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import { TrendingUp, Clock, BarChart3 } from "lucide-react";
+import Link from "next/link";
 import MarketCardHeader from "../components/ui/MarketCardHeader";
 
 export default function Home() {
@@ -21,13 +22,13 @@ export default function Home() {
               The most active prediction markets on the protocol. Analyze the data and place your bets.
             </p>
           </div>
-          <a
+          <Link
             href="/markets"
             className="group flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-semibold"
           >
             View All Markets
             <TrendingUp size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-          </a>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -74,7 +75,7 @@ export default function Home() {
 
         {/* Call to Action */}
         <div className="text-center mt-20 p-12 glass-panel">
-          <h3 className="text-2xl font-bold mb-4">Don't see a market you're looking for?</h3>
+          <h3 className="text-2xl font-bold mb-4">Don&apos;t see a market you&apos;re looking for?</h3>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
             You can create your own prediction market on any event using our community-driven protocol.
           </p>

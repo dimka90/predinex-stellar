@@ -26,8 +26,7 @@ export function NetworkSwitcher() {
 
     try {
       const targetNetwork = network === 'mainnet' ? stacksNetworks.mainnet : stacksNetworks.testnet;
-      // @ts-ignore - AppKit types handling
-      await switchNetwork(targetNetwork);
+      await (switchNetwork as any)(targetNetwork);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Network switch failed';
       setError(message);

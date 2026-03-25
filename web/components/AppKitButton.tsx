@@ -14,7 +14,8 @@ export default function AppKitButton({ className, label = 'Connect Wallet' }: Ap
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   if (!mounted) {

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Pool } from '../lib/stacks-api';
+import { Pool } from '@/app/lib/stacks-api';
 import { TrendingUp, Clock, ChevronRight } from 'lucide-react';
 import MarketCardHeader from './ui/MarketCardHeader';
 import ClaimWinningsButton from './ClaimWinningsButton';
@@ -26,7 +26,7 @@ export default function MarketCard({ market }: { market: Pool }) {
                     <h3 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors line-clamp-2 leading-tight">
                         {market.title}
                     </h3>
-                    <p className="text-sm text-muted-foreground mb-8 line-clamp-2 flex-grow leading-relaxed font-medium">
+                    <p className="text-sm text-muted-foreground mb-8 line-clamp-2 grow leading-relaxed font-medium">
                         {market.description}
                     </p>
 
@@ -53,7 +53,7 @@ export default function MarketCard({ market }: { market: Pool }) {
                     </div>
 
                     {/* Subtle gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 </div>
             </Link>
 

@@ -29,6 +29,13 @@ export default function DisputeManagement() {
   const [userVotes, setUserVotes] = useState<DisputeVote[]>([]);
   const [selectedTab, setSelectedTab] = useState<'active' | 'resolved' | 'create'>('active');
   const [isLoading, setIsLoading] = useState(false);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Mock data for demonstration
   useEffect(() => {
@@ -104,7 +111,7 @@ export default function DisputeManagement() {
   };
 
   const formatTimeRemaining = (deadline: number) => {
-    const now = Date.now();
+    if (now === 0) return 'Loading...';
     const remaining = deadline - now;
     
     if (remaining <= 0) return 'Expired';

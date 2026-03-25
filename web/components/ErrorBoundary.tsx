@@ -42,7 +42,7 @@ class ErrorBoundary extends Component<Props, State> {
                         <div className="space-y-2">
                             <h2 className="text-2xl font-bold">Something went wrong</h2>
                             <p className="text-muted-foreground">
-                                An unexpected error occurred. We've been notified and are looking into it.
+                                An unexpected error occurred. We&apos;ve been notified and are looking into it.
                             </p>
                         </div>
 

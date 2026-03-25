@@ -8,7 +8,7 @@ import { openContractCall } from '@stacks/connect';
 import { uintCV } from '@stacks/transactions';
 import { getRuntimeConfig } from '../../lib/runtime-config';
 import { Loader2, Wallet, AlertCircle } from 'lucide-react';
-import { Pool } from '../../lib/stacks-api';
+import { Pool } from '@/app/lib/stacks-api';
 
 interface BettingSectionProps {
     pool: Pool;
@@ -28,7 +28,8 @@ export default function BettingSection({ pool, poolId }: BettingSectionProps) {
     useEffect(() => {
         if (isConnected) {
             // In a real app, fetch balance from API
-            setWalletBalance(100.0); // Mock balance for testing
+            const timer = setTimeout(() => setWalletBalance(100.0), 0); // Mock balance for testing
+            return () => clearTimeout(timer);
         } else {
             setWalletBalance(null);
         }
@@ -106,7 +107,7 @@ export default function BettingSection({ pool, poolId }: BettingSectionProps) {
                 <p className="text-muted-foreground mb-4">You need to connect your wallet to place bets on this market.</p>
                 <button
                     onClick={authenticate}
-                    className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-6 py-3 rounded-full border border-primary/20 transition-colors font-medium mx-auto hover:scale-105 transform transition-transform"
+                    className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-6 py-3 rounded-full border border-primary/20 transition font-medium mx-auto hover:scale-105"
                 >
                     <Wallet className="w-5 h-5" />
                     Connect Wallet
@@ -136,7 +137,7 @@ export default function BettingSection({ pool, poolId }: BettingSectionProps) {
             {/* Balance Warning */}
             {walletBalance !== null && walletBalance < 0.1 && (
                 <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex gap-2">
-                    <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
                     <p className="text-sm text-yellow-600">Insufficient balance to place bets. Minimum: 0.1 STX</p>
                 </div>
             )}

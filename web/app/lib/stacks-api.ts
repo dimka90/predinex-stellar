@@ -17,8 +17,9 @@ export interface Pool {
     totalA: number;
     totalB: number;
     settled: boolean;
-    winningOutcome: number | null;
+    winningOutcome: number | undefined;
     expiry: number;
+    status: 'active' | 'settled' | 'expired';
 }
 
 export async function getPoolCount(): Promise<number> {
@@ -70,8 +71,9 @@ export async function getPool(poolId: number): Promise<Pool | null> {
             totalA: Number(value['total-a']),
             totalB: Number(value['total-b']),
             settled: value.settled,
-            winningOutcome: value['winning-outcome'] ?? null,
+            winningOutcome: value['winning-outcome'] ?? undefined,
             expiry: Number(value.expiry ?? 0),
+            status: value.settled ? 'settled' : 'active',
         };
     } catch (e) {
         console.error(`Failed to fetch pool ${poolId}`, e);
@@ -79,15 +81,51 @@ export async function getPool(poolId: number): Promise<Pool | null> {
     }
 }
 
-export async function fetchActivePools(): Promise<Pool[]> {
+export async function getMarkets(filter: 'active' | 'settled' | 'all' = 'all'): Promise<Pool[]> {
     const count = await getPoolCount();
     const pools: Pool[] = [];
 
-    for (let i = count - 1; i >= 0; i--) {
+    // pool IDs start from 0
+    for (let i = 0; i < count; i++) {
         const pool = await getPool(i);
-        if (pool) pools.push(pool);
+        if (pool) {
+            if (filter === 'active' && pool.settled) continue;
+            if (filter === 'settled' && !pool.settled) continue;
+            pools.push(pool);
+        }
     }
     return pools;
+}
+
+/** Alias for getMarkets('active') — used by tests */
+export async function fetchActivePools(): Promise<Pool[]> {
+    try {
+        return await getMarkets('active');
+    } catch (e) {
+        console.error('Failed to fetch active pools', e);
+        return [];
+    }
+}
+
+export async function getTotalVolume(): Promise<number> {
+    try {
+        const cfg = getRuntimeConfig();
+        const network = getStacksNetwork();
+        const result = await fetchCallReadOnlyFunction({
+            contractAddress: cfg.contract.address,
+            contractName: cfg.contract.name,
+            functionName: 'get-total-volume',
+            functionArgs: [],
+            senderAddress: cfg.contract.address,
+            network,
+        });
+
+        const value = cvToValue(result);
+        return Number(value);
+    } catch (e) {
+        console.error("Error fetching total volume:", e);
+        return 0;
+    }
 }
 
 export interface UserBetData {
@@ -113,9 +151,9 @@ export async function getUserBet(poolId: number, userAddress: string): Promise<U
         if (!value) return null;
 
         return {
-            amountA: Number(value['amount-a']),
-            amountB: Number(value['amount-b']),
-            totalBet: Number(value['total-bet']),
+            amountA: Number((value['amount-a'] as any)?.value ?? value['amount-a']),
+            amountB: Number((value['amount-b'] as any)?.value ?? value['amount-b']),
+            totalBet: Number((value['total-bet'] as any)?.value ?? value['total-bet']),
         };
     } catch (e) {
         console.error(`Failed to fetch user bet for pool ${poolId}`, e);
@@ -214,13 +252,30 @@ function extractPoolInfo(args: any[]): { amount?: number; poolId?: number } {
 }
 
 /**
+ * Injectable configuration for getUserActivity, enabling test isolation.
+ */
+export interface ActivityConfig {
+    /** Base URL for the Stacks API, e.g. https://api.testnet.hiro.so */
+    apiBaseUrl: string;
+    /** Explorer base URL used to build transaction links */
+    explorerUrl: string;
+    /** Contract address used to filter Predinex transactions */
+    contractAddress: string;
+}
+
+/**
  * Fetches recent on-chain activity for a user address by querying the
  * Stacks blockchain API for contract-call transactions targeting the
  * Predinex contract. Uses contract events when available for richer data.
+ *
+ * @param userAddress - Stacks principal to query
+ * @param limit       - Maximum number of transactions to fetch (default 20)
+ * @param config      - Optional injectable config; falls back to module-level constants
  */
 export async function getUserActivity(
     userAddress: string,
-    limit: number = 20
+    limit: number = 20,
+    config?: Partial<ActivityConfig>
 ): Promise<ActivityItem[]> {
     try {
         const cfg = getRuntimeConfig();
@@ -243,7 +298,7 @@ export async function getUserActivity(
             return callInfo.contract_id?.includes(cfg.contract.address);
         });
 
-        return predinexTxs.map((tx: any): ActivityItem => {
+        return predinexTxs.map((tx): ActivityItem => {
             const callInfo = tx.contract_call;
             const fnName: string = callInfo?.function_name || 'unknown';
 
@@ -256,10 +311,12 @@ export async function getUserActivity(
             if (tx.tx_status === 'success') status = 'success';
             else if (tx.tx_status === 'abort_by_response' || tx.tx_status === 'abort_by_post_condition') status = 'failed';
 
+            // Parse contract events for richer data
+            const event = parseContractEvents(tx);
+
+            // Extract amount from function args if available
             const args: any[] = callInfo?.function_args || [];
             const { amount, poolId } = extractPoolInfo(args);
-            
-            const event = parseContractEvents(tx);
 
             return {
                 txId: tx.tx_id,

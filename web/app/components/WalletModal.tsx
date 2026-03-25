@@ -25,11 +25,14 @@ export default function WalletModal({ isOpen, onClose, onSelectWallet, error }: 
 
     useEffect(() => {
         if (isOpen) {
-            setWalletAvailability({
-                leather: isWalletAvailable('leather'),
-                xverse: isWalletAvailable('xverse'),
-                walletconnect: isWalletAvailable('walletconnect'),
-            });
+            const timer = setTimeout(() => {
+                setWalletAvailability({
+                    leather: isWalletAvailable('leather'),
+                    xverse: isWalletAvailable('xverse'),
+                    walletconnect: isWalletAvailable('walletconnect'),
+                });
+            }, 0);
+            return () => clearTimeout(timer);
         }
     }, [isOpen]);
 

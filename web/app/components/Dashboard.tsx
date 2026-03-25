@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useStacks } from './StacksProvider';
 import { useWalletConnect } from '../lib/hooks/useWalletConnect';
 import IncentivesDisplay from './IncentivesDisplay';
-import { BarChart3, TrendingUp, Wallet, History, Award, Gift } from 'lucide-react';
+import { BarChart3, Wallet, Award, Gift } from 'lucide-react';
 
 interface UserBet {
   poolId: number;

@@ -13,8 +13,10 @@ export function WalletStatus() {
 
   useEffect(() => {
     if (session?.isConnected) {
-      // Create a compatible health check if needed, or mock it safely
-      setHealth({ status: 'healthy', message: 'Connected' });
+      const timer = setTimeout(() => {
+        setHealth({ status: 'healthy', message: 'Connected' });
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [session]);
 

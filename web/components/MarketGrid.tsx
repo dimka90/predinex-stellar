@@ -1,4 +1,4 @@
-import { Pool } from '../lib/stacks-api';
+import { Pool } from '@/app/lib/stacks-api';
 import MarketCard from './MarketCard';
 import { Spinner } from './ui/spinner';
 import { Search } from 'lucide-react';

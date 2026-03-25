@@ -90,8 +90,12 @@ export default function OracleManagement() {
       }
     ];
 
-    setOracleProviders(mockProviders);
-    setOracleSubmissions(mockSubmissions);
+    // Delay setting to avoid synchronous render warning
+    const timer = setTimeout(() => {
+      setOracleProviders(mockProviders);
+      setOracleSubmissions(mockSubmissions);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const formatAddress = (address: string) => {

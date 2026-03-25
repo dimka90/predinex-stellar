@@ -74,7 +74,7 @@ export default function ClaimWinnings({
           <Gift className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Claimable Winnings</h3>
           <p className="text-muted-foreground mb-4">
-            You don't have any winnings ready to claim at the moment.
+            You don&apos;t have any winnings ready to claim at the moment.
           </p>
           <Link 
             href="/markets" 
@@ -267,7 +267,7 @@ export default function ClaimWinnings({
           <div className="glass p-6 rounded-xl max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Confirm Batch Claim</h3>
             <p className="text-muted-foreground mb-6">
-              You're about to claim winnings from {selectedBets.size} markets for a total of{' '}
+              You&apos;re about to claim winnings from {selectedBets.size} markets for a total of{' '}
               <span className="font-semibold text-green-500">{formatCurrency(selectedClaimable)}</span>.
             </p>
             
