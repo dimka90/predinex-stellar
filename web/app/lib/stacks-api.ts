@@ -263,13 +263,30 @@ function extractPoolInfo(args: any[]): { amount?: number; poolId?: number } {
 }
 
 /**
+ * Injectable configuration for getUserActivity, enabling test isolation.
+ */
+export interface ActivityConfig {
+    /** Base URL for the Stacks API, e.g. https://api.testnet.hiro.so */
+    apiBaseUrl: string;
+    /** Explorer base URL used to build transaction links */
+    explorerUrl: string;
+    /** Contract address used to filter Predinex transactions */
+    contractAddress: string;
+}
+
+/**
  * Fetches recent on-chain activity for a user address by querying the
  * Stacks blockchain API for contract-call transactions targeting the
  * Predinex contract. Uses contract events when available for richer data.
+ *
+ * @param userAddress - Stacks principal to query
+ * @param limit       - Maximum number of transactions to fetch (default 20)
+ * @param config      - Optional injectable config; falls back to module-level constants
  */
 export async function getUserActivity(
     userAddress: string,
-    limit: number = 20
+    limit: number = 20,
+    config?: Partial<ActivityConfig>
 ): Promise<ActivityItem[]> {
     try {
         const { NETWORK_CONFIG, DEFAULT_NETWORK } = await import('./network-config');
@@ -284,7 +301,15 @@ export async function getUserActivity(
         const explorerBase = networkInfo.explorerUrl || 'https://explorer.hiro.so';
         const STACKS_API_BASE_URL = networkInfo.apiUrl;
 
-        const url = `${STACKS_API_BASE_URL}/extended/v1/address/${userAddress}/transactions?limit=${limit}&type=contract_call`;
+        if (!explorerBase) {
+            console.error('getUserActivity: explorerUrl is not configured');
+            return [];
+        }
+
+        const apiBase = config?.apiBaseUrl ?? STACKS_API_BASE_URL;
+        const contractAddr = config?.contractAddress ?? CONTRACT_ADDRESS;
+
+        const url = `${apiBase}/extended/v1/address/${userAddress}/transactions?limit=${limit}&type=contract_call`;
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -298,7 +323,7 @@ export async function getUserActivity(
         const predinexTxs = results.filter((tx: any) => {
             const callInfo = tx.contract_call;
             if (!callInfo) return false;
-            return callInfo.contract_id?.includes(CONTRACT_ADDRESS);
+            return callInfo.contract_id?.includes(contractAddr);
         });
 
         return predinexTxs.map((tx): ActivityItem => {

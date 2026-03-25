@@ -2,6 +2,44 @@
  * Shared constants for the Predinex frontend UI.
  */
 
+// ---------------------------------------------------------------------------
+// Network / API configuration
+// ---------------------------------------------------------------------------
+
+export type NetworkName = 'mainnet' | 'testnet';
+
+export const DEFAULT_NETWORK: NetworkName =
+    (process.env.NEXT_PUBLIC_NETWORK as NetworkName) || 'testnet';
+
+export const STACKS_API_BASE_URL: string =
+    process.env.NEXT_PUBLIC_STACKS_API_URL || 'https://api.testnet.hiro.so';
+
+export const CONTRACT_ADDRESS: string =
+    process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || 'SP2WWKKF25SED3K5P6ETY7MDDNBQH50GPSP8EJM8N';
+
+export const CONTRACT_NAME: string =
+    process.env.NEXT_PUBLIC_CONTRACT_NAME || 'predinex-contract';
+
+export interface NetworkConfig {
+    apiUrl: string;
+    explorerUrl: string;
+}
+
+export const NETWORK_CONFIG: Record<NetworkName, NetworkConfig> = {
+    mainnet: {
+        apiUrl: 'https://api.hiro.so',
+        explorerUrl: 'https://explorer.hiro.so',
+    },
+    testnet: {
+        apiUrl: 'https://api.testnet.hiro.so',
+        explorerUrl: 'https://explorer.hiro.so/?chain=testnet',
+    },
+};
+
+// ---------------------------------------------------------------------------
+// UI constants
+// ---------------------------------------------------------------------------
+
 /**
  * Standard sizes for Lucide icons (numeric)
  */
