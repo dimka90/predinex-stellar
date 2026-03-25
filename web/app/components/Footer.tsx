@@ -18,7 +18,7 @@ export default function Footer() {
                     </div>
 
                     <p className="text-sm text-muted-foreground">
-                        © 2026 Predinex Protocol. Built on Stacks.
+                        © 2026 Predinex Protocol. Built on Stellar.
                     </p>
                 </div>
             </div>
