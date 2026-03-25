@@ -3,6 +3,24 @@ import { fetchCallReadOnlyFunction, cvToValue } from '@stacks/transactions';
 import { getPoolCount, getPool, fetchActivePools, getUserBet } from '../../app/lib/stacks-api';
 import { uintCV } from '@stacks/transactions';
 
+// Mock runtime-config so tests don't require NEXT_PUBLIC_NETWORK env var
+vi.mock('../../app/lib/runtime-config', () => ({
+  getRuntimeConfig: vi.fn(() => ({
+    network: 'testnet',
+    contract: {
+      address: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
+      name: 'predinex-pool',
+      id: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.predinex-pool',
+    },
+    api: {
+      coreApiUrl: 'https://api.testnet.hiro.so',
+      explorerUrl: 'https://explorer.hiro.so?chain=testnet',
+      rpcUrl: 'https://api.testnet.hiro.so',
+    },
+  })),
+  __resetRuntimeConfigForTests: vi.fn(),
+}));
+
 // Mock @stacks/transactions
 vi.mock('@stacks/transactions', async () => {
   const actual = await vi.importActual('@stacks/transactions');

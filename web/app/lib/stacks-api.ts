@@ -278,10 +278,25 @@ export async function getUserActivity(
     config?: Partial<ActivityConfig>
 ): Promise<ActivityItem[]> {
     try {
-        const cfg = getRuntimeConfig();
-        const explorerBase = cfg.api.explorerUrl;
+        // Use injected config when provided (enables test isolation), otherwise fall back to runtime config
+        let explorerBase: string;
+        let apiBaseUrl: string;
+        let contractAddress: string;
 
-        const url = `${cfg.api.coreApiUrl}/extended/v1/address/${userAddress}/transactions?limit=${limit}&type=contract_call`;
+        if (config && config.apiBaseUrl && config.contractAddress) {
+            // Guard: if explorerUrl is missing/empty, bail out early
+            if (!config.explorerUrl) return [];
+            explorerBase = config.explorerUrl;
+            apiBaseUrl = config.apiBaseUrl;
+            contractAddress = config.contractAddress;
+        } else {
+            const cfg = getRuntimeConfig();
+            explorerBase = cfg.api.explorerUrl;
+            apiBaseUrl = cfg.api.coreApiUrl;
+            contractAddress = cfg.contract.address;
+        }
+
+        const url = `${apiBaseUrl}/extended/v1/address/${userAddress}/transactions?limit=${limit}&type=contract_call`;
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -295,7 +310,7 @@ export async function getUserActivity(
         const predinexTxs = results.filter((tx: any) => {
             const callInfo = tx.contract_call;
             if (!callInfo) return false;
-            return callInfo.contract_id?.includes(cfg.contract.address);
+            return callInfo.contract_id?.includes(contractAddress);
         });
 
         return predinexTxs.map((tx): ActivityItem => {

@@ -1,11 +1,29 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { useMarketDiscovery } from '../../app/lib/hooks/useMarketDiscovery';
 import {
   writeMarketListCache,
   MARKET_LIST_CACHE_TTL_MS
 } from '../../app/lib/market-list-cache';
 import type { ProcessedMarket, PoolData } from '../../app/lib/market-types';
+
+// Mock runtime-config so fetchCurrentBlockHeightLive doesn't throw on missing env var
+vi.mock('../../app/lib/runtime-config', () => ({
+  getRuntimeConfig: vi.fn(() => ({
+    network: 'testnet',
+    contract: {
+      address: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
+      name: 'predinex-pool',
+      id: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.predinex-pool',
+    },
+    api: {
+      coreApiUrl: 'https://api.testnet.hiro.so',
+      explorerUrl: 'https://explorer.hiro.so?chain=testnet',
+      rpcUrl: 'https://api.testnet.hiro.so',
+    },
+  })),
+  __resetRuntimeConfigForTests: vi.fn(),
+}));
 
 vi.mock('../../app/lib/enhanced-stacks-api', () => ({
   fetchAllPools: vi.fn()
@@ -81,6 +99,10 @@ describe('Market discovery cache', () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('uses fresh cached data on first render (no loading state)', () => {
     writeMarketListCache([cachedMarket], baseNow);
 
@@ -98,10 +120,13 @@ describe('Market discovery cache', () => {
     render(<MarketsDiscoveryHarness />);
     expect(screen.getByText(/loading-0-none/)).toBeInTheDocument();
 
-    await waitFor(() => {
-      // With live height=200 and pool expiry=100 => expired
-      expect(screen.getByText(/loaded-1-expired/)).toBeInTheDocument();
+    // Flush all pending promises and timers
+    await act(async () => {
+      await vi.runAllTimersAsync();
     });
+
+    // With live height=200 and pool expiry=100 => expired
+    expect(screen.getByText(/loaded-1-expired/)).toBeInTheDocument();
   });
 
   it('surfaces a warning when live block-height lookup fails (fallback height used)', async () => {
@@ -119,10 +144,13 @@ describe('Market discovery cache', () => {
     render(<MarketsDiscoveryHarness />);
     expect(screen.getByText(/loading-0-none/)).toBeInTheDocument();
 
-    await waitFor(() => {
-      // height=50, expiry=100 => active + warning surfaced
-      expect(screen.getByText(/loaded-1-active-warn/)).toBeInTheDocument();
+    // Flush all pending promises and timers
+    await act(async () => {
+      await vi.runAllTimersAsync();
     });
+
+    // height=50, expiry=100 => active + warning surfaced
+    expect(screen.getByText(/loaded-1-active-warn/)).toBeInTheDocument();
   });
 });
 

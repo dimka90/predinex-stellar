@@ -31,7 +31,9 @@ describe('market discovery network selection', () => {
     expect(fetchCallReadOnlyFunction).toHaveBeenCalledWith(
       expect.objectContaining({
         network: expect.objectContaining({
-          coreApiUrl: expect.stringContaining('testnet'),
+          client: expect.objectContaining({
+            baseUrl: expect.stringContaining('testnet'),
+          }),
         }),
       })
     );
@@ -45,7 +47,9 @@ describe('market discovery network selection', () => {
     expect(fetchCallReadOnlyFunction).toHaveBeenCalledWith(
       expect.objectContaining({
         network: expect.objectContaining({
-          coreApiUrl: expect.stringContaining('mainnet'),
+          client: expect.objectContaining({
+            baseUrl: expect.stringContaining('mainnet'),
+          }),
         }),
       })
     );

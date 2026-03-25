@@ -51,7 +51,7 @@ export default function ActivityPage() {
                             Activity Feed
                         </h1>
                         <p className="text-muted-foreground">
-                            Your on-chain prediction history on Stacks
+                            Your on-chain prediction history on Stellar
                         </p>
                     </div>
 

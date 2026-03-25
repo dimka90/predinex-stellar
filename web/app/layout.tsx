@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Predinex | Next-Gen Prediction Markets on Stacks",
-  description: "The decentralized prediction market built for the Bitcoin economy. Predict, bet, and win on Stacks.",
+  title: "Predinex | Next-Gen Prediction Markets on Stellar",
+  description: "The decentralized prediction market built on Stellar. Predict, bet, and win with Soroban-powered smart contracts.",
   openGraph: {
-    title: "Predinex | Next-Gen Prediction Markets on Stacks",
-    description: "The decentralized prediction market built for the Bitcoin economy. Predict, bet, and win on Stacks.",
+    title: "Predinex | Next-Gen Prediction Markets on Stellar",
+    description: "The decentralized prediction market built on Stellar. Predict, bet, and win with Soroban-powered smart contracts.",
     url: "https://predinex.io",
     siteName: "Predinex",
     images: [
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Predinex - Prediction Markets on Stacks",
+        alt: "Predinex - Prediction Markets on Stellar",
       },
     ],
     locale: "en_US",
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Predinex | Next-Gen Prediction Markets on Stacks",
-    description: "Predict the future. Win on Bitcoin.",
+    title: "Predinex | Next-Gen Prediction Markets on Stellar",
+    description: "Predict the future. Win on Stellar.",
     images: ["/og-image.png"],
   },
 };

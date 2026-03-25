@@ -1,10 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BettingSection from '../../app/components/BettingSection';
 import * as StacksProvider from '../../app/components/StacksProvider';
 import * as StacksConnect from '@stacks/connect';
 import { useToast } from '../../providers/ToastProvider';
+
+// Mock runtime-config so getRuntimeConfig() doesn't throw in tests
+vi.mock('../../app/lib/runtime-config', () => ({
+  getRuntimeConfig: vi.fn(() => ({
+    network: 'testnet',
+    contract: {
+      address: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
+      name: 'predinex-pool',
+      id: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.predinex-pool',
+    },
+    api: {
+      coreApiUrl: 'https://api.testnet.hiro.so',
+      explorerUrl: 'https://explorer.hiro.so?chain=testnet',
+      rpcUrl: 'https://api.testnet.hiro.so',
+    },
+  })),
+}));
 
 // Mock dependencies
 vi.mock('../../app/components/StacksProvider', () => ({
@@ -18,6 +35,11 @@ vi.mock('@stacks/connect', () => ({
 vi.mock('../../providers/ToastProvider', () => ({
   useToast: vi.fn(),
 }));
+
+/** Minimal wrapper that satisfies all context requirements for BettingSection */
+function renderWithProviders(ui: React.ReactElement) {
+  return render(ui);
+}
 
 const mockPool = {
   id: 0,

@@ -6,7 +6,7 @@ import { useWalletConnection } from '../../lib/hooks/useWalletConnection';
 import { useToast } from '../../providers/ToastProvider';
 import { openContractCall } from '@stacks/connect';
 import { uintCV } from '@stacks/transactions';
-import { getRuntimeConfig } from '../../lib/runtime-config';
+import { getRuntimeConfig } from '../lib/runtime-config';
 import { Loader2, Wallet, AlertCircle } from 'lucide-react';
 import { Pool } from '@/app/lib/stacks-api';
 

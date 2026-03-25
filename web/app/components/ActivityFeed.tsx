@@ -176,7 +176,7 @@ const ActivityRow = memo(function ActivityRow({ item, nowSeconds }: { item: Acti
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-2 rounded-lg bg-muted/40 hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                    aria-label="View on Stacks Explorer"
+                    aria-label="View on Stellar Explorer"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <ExternalLink className="w-3.5 h-3.5" />

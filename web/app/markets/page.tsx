@@ -53,7 +53,7 @@ export default function MarketsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Prediction Markets</h1>
           <p className="text-muted-foreground">
-            Discover and participate in decentralized prediction markets on Stacks
+            Discover and participate in decentralized prediction markets on Stellar
           </p>
         </div>
 

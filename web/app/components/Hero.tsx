@@ -13,7 +13,7 @@ export default function Hero() {
             <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-xs font-bold text-primary mb-10 tracking-widest uppercase animate-pulse">
                     <Sparkles size={14} />
-                    Live on Stacks Testnet
+                    Live on Stellar Testnet
                 </div>
 
                 <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-[0.9]">
