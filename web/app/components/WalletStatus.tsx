@@ -8,17 +8,10 @@ import { useEffect, useState } from 'react';
 
 export function WalletStatus() {
   const { session } = useWalletConnect();
-  const [health, setHealth] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(true);
 
-  useEffect(() => {
-    if (session?.isConnected) {
-      const timer = setTimeout(() => {
-        setHealth({ status: 'healthy', message: 'Connected' });
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [session]);
+  // Derived directly from session — no extra state or effect needed
+  const health = session?.isConnected ? { status: 'healthy', message: 'Connected' } : null;
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
