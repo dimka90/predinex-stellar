@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import {
     Trophy, Target, PlusCircle, Zap,
     ExternalLink, RefreshCw, TrendingUp, Clock
@@ -9,8 +9,8 @@ import { ActivityItem } from '../lib/stacks-api';
 
 // --- Helpers ---
 
-function timeAgo(timestamp: number): string {
-    const seconds = Math.floor(Date.now() / 1000) - timestamp;
+function timeAgo(timestamp: number, nowSeconds: number): string {
+    const seconds = nowSeconds - timestamp;
     if (seconds < 60) return 'Just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -111,7 +111,7 @@ function EmptyState() {
 
 // --- Activity Row ---
 
-const ActivityRow = memo(function ActivityRow({ item }: { item: ActivityItem }) {
+const ActivityRow = memo(function ActivityRow({ item, nowSeconds }: { item: ActivityItem; nowSeconds: number }) {
     const config = TYPE_CONFIG[item.type];
     const Icon = config.icon;
 
@@ -168,7 +168,7 @@ const ActivityRow = memo(function ActivityRow({ item }: { item: ActivityItem }) 
             <div className="flex-shrink-0 flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
                     <Clock className="w-3 h-3" />
-                    <span>{timeAgo(item.timestamp)}</span>
+                    <span>{timeAgo(item.timestamp, nowSeconds)}</span>
                 </div>
                 <a
                     href={item.explorerUrl}
@@ -209,6 +209,13 @@ const ActivityFeed = memo(function ActivityFeed({
 }: ActivityFeedProps) {
     const displayItems = limit ? activities.slice(0, limit) : activities;
 
+    // Effect-managed timer so render output is derived from state, not direct Date.now() calls
+    const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1000));
+    useEffect(() => {
+        const interval = setInterval(() => setNowSeconds(Math.floor(Date.now() / 1000)), 30000);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="w-full">
             {showHeader && (
@@ -243,7 +250,7 @@ const ActivityFeed = memo(function ActivityFeed({
             ) : (
                 <div className="space-y-3" role="list" aria-label="Activity feed">
                     {displayItems.map((item) => (
-                        <ActivityRow key={item.txId} item={item} />
+                        <ActivityRow key={item.txId} item={item} nowSeconds={nowSeconds} />
                     ))}
                 </div>
             )}
