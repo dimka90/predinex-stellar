@@ -1,5 +1,6 @@
 import { WALLETCONNECT_CONFIG } from './walletconnect-config';
 import { NETWORK_CONFIG as ANALYTICS_NETWORK_CONFIG } from './analytics/config';
+import { validateContractId } from './validators';
 
 export type SupportedNetwork = 'mainnet' | 'testnet';
 
@@ -80,6 +81,11 @@ export function getRuntimeConfig(): RuntimeConfig {
     throw new Error(
       `Missing contract id for network '${network}'. Expected it in analytics NETWORK_CONFIG[${analyticsKey}].CONTRACT_ADDRESS.`
     );
+  }
+
+  const contractValidation = validateContractId(contractIdFromAnalytics, network);
+  if (!contractValidation.valid) {
+    throw new Error(`Invalid contract configuration: ${contractValidation.error}`);
   }
 
   const contract = parseContractId(contractIdFromAnalytics);
