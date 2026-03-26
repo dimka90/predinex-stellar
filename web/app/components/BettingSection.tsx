@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useStacks } from './StacksProvider';
 import { useToast } from '../../providers/ToastProvider';
 import { openContractCall } from '@stacks/connect';
@@ -20,19 +20,9 @@ export default function BettingSection({ pool, poolId }: BettingSectionProps) {
     const { contract } = getRuntimeConfig();
     const [betAmount, setBetAmount] = useState("");
     const [isBetting, setIsBetting] = useState(false);
-    const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
-    const isConnected = !!userData;
-    const address = userData?.profile?.stxAddress?.mainnet || null;
-
-    useEffect(() => {
-        if (isConnected) {
-            const timer = setTimeout(() => setWalletBalance(100.0), 0);
-            return () => clearTimeout(timer);
-        } else {
-            setWalletBalance(null);
-        }
-    }, [isConnected]);
+    // Derived directly from connection state — no effect needed for this mock value
+    const walletBalance: number | null = isConnected ? 100.0 : null;
 
     const placeBet = async (outcome: number) => {
         if (!userData) {

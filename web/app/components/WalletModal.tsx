@@ -6,7 +6,6 @@
  */
 
 import { X, Wallet, Smartphone, CheckCircle2, AlertCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { isWalletAvailable, WalletType } from '../lib/wallet-connector';
 
 interface WalletModalProps {
@@ -17,24 +16,15 @@ interface WalletModalProps {
 }
 
 export default function WalletModal({ isOpen, onClose, onSelectWallet, error }: WalletModalProps) {
-    const [walletAvailability, setWalletAvailability] = useState<Record<WalletType, boolean>>({
-        leather: false,
-        xverse: false,
-        walletconnect: true,
-    });
-
-    useEffect(() => {
-        if (isOpen) {
-            const timer = setTimeout(() => {
-                setWalletAvailability({
-                    leather: isWalletAvailable('leather'),
-                    xverse: isWalletAvailable('xverse'),
-                    walletconnect: isWalletAvailable('walletconnect'),
-                });
-            }, 0);
-            return () => clearTimeout(timer);
-        }
-    }, [isOpen]);
+    // Derived directly from isOpen — no state or effect needed; isWalletAvailable is
+    // SSR-safe and cheap to call on each render.
+    const walletAvailability: Record<WalletType, boolean> = isOpen
+        ? {
+              leather: isWalletAvailable('leather'),
+              xverse: isWalletAvailable('xverse'),
+              walletconnect: isWalletAvailable('walletconnect'),
+          }
+        : { leather: false, xverse: false, walletconnect: true };
 
     if (!isOpen) return null;
 

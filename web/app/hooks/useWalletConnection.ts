@@ -14,39 +14,21 @@ export interface WalletConnectionStatus {
     hasAnyWallet: boolean;
 }
 
-export interface WalletConnectionState {
-    isConnected: boolean;
-    address: string | null;
-    connect: () => void;
-    disconnect: () => void;
+function getWalletStatus(): WalletConnectionStatus {
+    const leather = isWalletAvailable('leather');
+    const xverse = isWalletAvailable('xverse');
+    const walletconnect = isWalletAvailable('walletconnect');
+    return { leather, xverse, walletconnect, hasAnyWallet: leather || xverse || walletconnect };
 }
 
 export function useWalletConnection(): WalletConnectionStatus {
-    const [status, setStatus] = useState<WalletConnectionStatus>({
-        leather: false,
-        xverse: false,
-        walletconnect: true,
-        hasAnyWallet: true,
-    });
+    // Lazy initializer runs once during the first render — no synchronous setState
+    // in an effect needed for the initial check.
+    const [status, setStatus] = useState<WalletConnectionStatus>(getWalletStatus);
 
     useEffect(() => {
-        const checkWallets = () => {
-            const leather = isWalletAvailable('leather');
-            const xverse = isWalletAvailable('xverse');
-            const walletconnect = isWalletAvailable('walletconnect');
-            
-            setStatus({
-                leather,
-                xverse,
-                walletconnect,
-                hasAnyWallet: leather || xverse || walletconnect,
-            });
-        };
-
-        checkWallets();
-        
-        const interval = setInterval(checkWallets, 2000);
-        
+        // Recheck periodically in case wallet extensions are installed after mount
+        const interval = setInterval(() => setStatus(getWalletStatus()), 2000);
         return () => clearInterval(interval);
     }, []);
 

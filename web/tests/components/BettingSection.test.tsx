@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -5,6 +6,15 @@ import BettingSection from '../../app/components/BettingSection';
 import * as StacksProvider from '../../app/components/StacksProvider';
 import * as StacksConnect from '@stacks/connect';
 import { useToast } from '../../providers/ToastProvider';
+import { renderWithProviders } from '../helpers/renderWithProviders';
+
+vi.mock('../../app/lib/runtime-config', () => ({
+  getRuntimeConfig: () => ({
+    network: 'testnet',
+    contract: { address: 'ST000', name: 'predinex', id: 'ST000.predinex' },
+    api: { coreApiUrl: 'https://api.testnet.hiro.so', explorerUrl: '', rpcUrl: '' },
+  }),
+}));
 
 // Mock runtime-config so getRuntimeConfig() doesn't throw in tests
 vi.mock('../../app/lib/runtime-config', () => ({
@@ -34,6 +44,9 @@ vi.mock('@stacks/connect', () => ({
 
 vi.mock('../../providers/ToastProvider', () => ({
   useToast: vi.fn(),
+  // ToastProvider is used by renderWithProviders; pass children through so the
+  // wrapper renders without throwing "No ToastProvider export" errors.
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 /** Minimal wrapper that satisfies all context requirements for BettingSection */

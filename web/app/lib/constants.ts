@@ -70,3 +70,4 @@ export const ANIMATION_DURATION = {
   base: 'duration-300',
   slow: 'duration-500',
 } as const;
+

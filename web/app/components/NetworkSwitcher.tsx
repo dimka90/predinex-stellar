@@ -26,7 +26,10 @@ export function NetworkSwitcher() {
 
     try {
       const targetNetwork = network === 'mainnet' ? stacksNetworks.mainnet : stacksNetworks.testnet;
-      await (switchNetwork as any)(targetNetwork);
+      // @ts-expect-error – stacksNetworks returns a Stacks-specific CaipNetwork shape that
+      // is structurally compatible with AppKit's switchNetwork parameter but not
+      // assignable to its declared CaipNetwork union type.
+      await switchNetwork(targetNetwork);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Network switch failed';
       setError(message);

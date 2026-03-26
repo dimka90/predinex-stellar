@@ -233,7 +233,7 @@ export class WalletService {
    * @returns 'mainnet' or 'testnet'
    */
   getCurrentNetwork(): NetworkType {
-    return (this.network as any).chainId === 1 ? 'mainnet' : 'testnet';
+    return this.network === STACKS_MAINNET ? 'mainnet' : 'testnet';
   }
 
   /**
