@@ -8,7 +8,7 @@
 
 ## 🏗 System Architecture
 
-The project centers around the `predinex` Soroban smart contract which manages pool states, betting logic, and fund distribution. It utilizes the Stellar Asset Contract (SAC) for secure token transfers.
+The project centers around the `predinex`,  Soroban smart contract which manages pool states, betting logic, and fund distribution. It utilizes the Stellar Asset Contract (SAC) for secure token transfers.
 
 ```mermaid
 graph TD
