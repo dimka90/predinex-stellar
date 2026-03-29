@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a defect with enough detail to reproduce and verify a fix.
+title: "[Bug]: "
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Share the affected area, environment, or user flow.
+      placeholder: What part of the project is affected and when does this show up?
+    validations:
+      required: true
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem statement
+      description: Describe the bug and how to reproduce it.
+      placeholder: What happened? Include the steps to reproduce and any relevant screenshots or logs.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: Describe what should be true once this issue is resolved.
+      placeholder: "Example: The failing flow completes successfully and no regression is introduced."
+    validations:
+      required: true
+  - type: textarea
+    id: test-considerations
+    attributes:
+      label: Test considerations
+      description: Note the checks needed to verify the fix.
+      placeholder: Which unit, integration, or manual checks should confirm the issue is fixed?
+    validations:
+      required: true

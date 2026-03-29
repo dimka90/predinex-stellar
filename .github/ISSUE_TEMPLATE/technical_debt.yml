@@ -1,0 +1,36 @@
+name: Technical debt
+description: Track refactors or maintenance work that improves quality and reduces risk.
+title: "[Tech Debt]: "
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Identify the code area, workflow, or system affected.
+      placeholder: Which part of the codebase or process is carrying the debt?
+    validations:
+      required: true
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem statement
+      description: Explain the maintenance burden, risk, or limitation.
+      placeholder: What is hard to maintain today, and what risk does it create?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: Define the condition that would resolve this debt item.
+      placeholder: "Example: The duplicated logic is removed and the replacement path is covered by tests."
+    validations:
+      required: true
+  - type: textarea
+    id: test-considerations
+    attributes:
+      label: Test considerations
+      description: Describe the checks needed to confirm the refactor is safe.
+      placeholder: What regression, contract, lint, or manual checks should pass after the cleanup?
+    validations:
+      required: true
