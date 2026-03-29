@@ -47,7 +47,7 @@ fn test_place_bet() {
     let token = token::Client::new(&env, &token_id.address());
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
 
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     let creator = Address::generate(&env);
     let user = Address::generate(&env);
@@ -90,7 +90,7 @@ fn test_settle_and_claim() {
     let token = token::Client::new(&env, &token_id.address());
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
 
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     let creator = Address::generate(&env);
     let user1 = Address::generate(&env);
@@ -153,7 +153,7 @@ fn test_duplicate_claim_rejected() {
     let token = token::Client::new(&env, &token_id.address());
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
 
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     let creator = Address::generate(&env);
     let user = Address::generate(&env);
@@ -212,7 +212,7 @@ fn test_initialize_succeeds_once() {
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
 
     // First initialization should succeed
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     // Verify the token address is stored by using it in a full flow:
     // create a pool and place a bet (which reads the stored token address)
@@ -250,12 +250,12 @@ fn test_initialize_twice_panics() {
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
 
     // First initialization succeeds
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     // Second initialization must panic
     let other_token_admin = Address::generate(&env);
     let other_token_id = env.register_stellar_asset_contract_v2(other_token_admin.clone());
-    client.initialize(&other_token_id.address());
+    client.initialize(&other_token_id.address(), &other_token_admin);
 }
 
 /// After the rejected second `initialize`, the original token address must
@@ -273,13 +273,13 @@ fn test_initialize_idempotency_preserves_original_token() {
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
 
     // First initialization with the original token
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     // Attempt second initialization with a different token (will panic internally)
     let other_token_admin = Address::generate(&env);
     let other_token_id = env.register_stellar_asset_contract_v2(other_token_admin.clone());
     let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        client.initialize(&other_token_id.address());
+        client.initialize(&other_token_id.address(), &other_token_admin);
     }));
 
     // The original token should still be active — verify by placing a bet
@@ -326,7 +326,7 @@ fn test_settle_pool_before_expiry_rejected() {
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
 
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     let creator = Address::generate(&env);
     let user = Address::generate(&env);
@@ -361,7 +361,7 @@ fn test_settle_pool_after_expiry_succeeds() {
     let token = token::Client::new(&env, &token_id.address());
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
 
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     let creator = Address::generate(&env);
     let user = Address::generate(&env);
@@ -418,7 +418,7 @@ fn test_settle_pool_unauthorized_caller_rejected() {
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
 
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     let creator = Address::generate(&env);
     let non_creator = Address::generate(&env);
@@ -459,7 +459,7 @@ fn test_settle_pool_unauthorized_then_authorized_succeeds() {
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
 
-    client.initialize(&token_id.address());
+    client.initialize(&token_id.address(), &token_admin);
 
     let creator = Address::generate(&env);
     let non_creator = Address::generate(&env);
@@ -513,7 +513,7 @@ fn test_get_user_bet_returns_correct_amounts() {
     let contract_id = env.register(PredinexContract, ());
     let client = PredinexContractClient::new(&env, &contract_id);
 
-    client.initialize(&token);
+    client.initialize(&token, &admin);
 
     let pool_id = client.create_pool(
         &admin,
@@ -555,7 +555,7 @@ fn test_get_user_bet_returns_none_for_user_with_no_bet() {
     let contract_id = env.register(PredinexContract, ());
     let client = PredinexContractClient::new(&env, &contract_id);
 
-    client.initialize(&token);
+    client.initialize(&token, &admin);
 
     let pool_id = client.create_pool(
         &admin,
@@ -598,7 +598,7 @@ fn setup() -> TestEnv<'static> {
     let contract_id = env.register(PredinexContract, ());
     let client = PredinexContractClient::new(&env, &contract_id);
  
-    client.initialize(&token);
+    client.initialize(&token, &admin);
  
     // Fund the user so token transfers in place_bet don't fail for balance reasons
     let token_admin = soroban_sdk::token::StellarAssetClient::new(&env, &token);
@@ -666,9 +666,9 @@ fn a3_invalid_outcome_does_not_mutate_pool_state() {
     assert_eq!(pool_before.total_b, 0i128);
  
     // Attempt an invalid bet — must panic
-    let result = std::panic::catch_unwind(|| {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         t.client.place_bet(&t.user, &pool_id, &2u32, &100i128);
-    });
+    }));
     assert!(result.is_err(), "invalid outcome bet must panic");
  
     // Pool totals must be unchanged
@@ -740,28 +740,28 @@ fn b3_invalid_winning_outcome_does_not_set_settled_flag() {
     let pool_id = make_pool(&t);
     expire_pool(&t.env);
  
-    let result = std::panic::catch_unwind(|| {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         t.client.settle_pool(&t.admin, &pool_id, &2u32);
-    });
+    }));
     assert!(result.is_err(), "invalid winning_outcome must panic");
- 
+
     let pool = t.client.get_pool(&pool_id).expect("pool must still exist");
     assert!(
         !pool.settled,
         "pool.settled must remain false after rejected settle"
     );
 }
- 
+
 /// B4: pool.winning_outcome must remain None after a rejected settle call.
 #[test]
 fn b4_invalid_winning_outcome_does_not_write_winning_outcome() {
     let t = setup();
     let pool_id = make_pool(&t);
     expire_pool(&t.env);
- 
-    let result = std::panic::catch_unwind(|| {
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         t.client.settle_pool(&t.admin, &pool_id, &2u32);
-    });
+    }));
     assert!(result.is_err(), "invalid winning_outcome must panic");
  
     let pool = t.client.get_pool(&pool_id).expect("pool must still exist");

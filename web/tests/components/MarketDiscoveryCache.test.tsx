@@ -68,6 +68,7 @@ describe('Market discovery cache', () => {
     status: 'active',
     timeRemaining: 10,
     createdAt: 1700000000,
+    settledAt: null,
     creator: 'ST123'
   };
 

@@ -154,10 +154,11 @@ export function processMarketStatistics(pools: PoolData[]): MarketStatistics[] {
       title: pool.title,
       description: pool.description,
       totalVolume,
-      participantCount: 0, // Will be calculated separately
+      participantCount: 0,
       currentOdds: { A: oddsA, B: oddsB },
-      volumeTrend: [], // Will be calculated from historical data
+      volumeTrend: [],
       createdAt: pool.createdAt,
+      settledAt: pool.settledAt,
       expiresAt: pool.expiry,
       status,
       outcomeAName: pool.outcomeAName,

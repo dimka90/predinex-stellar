@@ -178,25 +178,66 @@ export async function getPoolsBatch(startId: number, count: number): Promise<Poo
 }
 
 /**
- * Fallback method to fetch pools individually
+ * Default concurrency limit for parallel pool fetching.
+ * Prevents overwhelming the upstream API with too many simultaneous requests.
  */
-async function getPoolsIndividually(startId: number, count: number): Promise<PoolData[]> {
-  const pools: PoolData[] = [];
-  const promises: Promise<PoolData | null>[] = [];
+const DEFAULT_POOL_FETCH_CONCURRENCY = 5;
 
-  for (let i = 0; i < count; i++) {
-    promises.push(getEnhancedPool(startId + i));
-  }
+/**
+ * Fetches items with bounded concurrency using a semaphore pattern.
+ * @param items Array of items to process
+ * @param fetcher Function to fetch each item
+ * @param concurrency Maximum concurrent requests
+ */
+async function fetchWithBoundedConcurrency<T, R>(
+  items: T[],
+  fetcher: (item: T) => Promise<R>,
+  concurrency: number = DEFAULT_POOL_FETCH_CONCURRENCY
+): Promise<R[]> {
+  const results: R[] = [];
+  const executing: Promise<void>[] = [];
 
-  const results = await Promise.all(promises);
-  
-  for (const pool of results) {
-    if (pool) {
-      pools.push(pool);
+  for (const item of items) {
+    const promise = fetcher(item).then((result) => {
+      results.push(result);
+    });
+
+    executing.push(promise);
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+      executing.splice(
+        executing.findIndex((p) => p === promise),
+        1
+      );
     }
   }
 
-  return pools;
+  await Promise.all(executing);
+  return results;
+}
+
+/**
+ * Fallback method to fetch pools individually with bounded concurrency.
+ * Uses a configurable concurrency limit to prevent request storms.
+ * @param startId Starting pool ID
+ * @param count Number of pools to fetch
+ * @param concurrency Maximum concurrent requests (default: 5)
+ */
+async function getPoolsIndividually(
+  startId: number,
+  count: number,
+  concurrency: number = DEFAULT_POOL_FETCH_CONCURRENCY
+): Promise<PoolData[]> {
+  const poolIds = Array.from({ length: count }, (_, i) => startId + i);
+  
+  const results = await fetchWithBoundedConcurrency(
+    poolIds,
+    (id) => getEnhancedPool(id),
+    concurrency
+  );
+
+  return results.filter((pool): pool is PoolData => pool !== null);
 }
 
 /**

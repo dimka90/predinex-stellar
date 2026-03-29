@@ -28,6 +28,7 @@ export interface ProcessedMarket {
   status: 'active' | 'settled' | 'expired';
   timeRemaining: number | null;
   createdAt: number;
+  settledAt: number | null;
   creator: string;
 }
 

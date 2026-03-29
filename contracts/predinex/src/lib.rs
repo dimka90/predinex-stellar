@@ -10,6 +10,8 @@ pub enum DataKey {
     UserBet(u32, Address),
     PoolCounter,
     Token,
+    Treasury,
+    TreasuryRecipient,
 }
 
 #[derive(Clone)]
@@ -42,11 +44,13 @@ pub struct PredinexContract;
 
 #[contractimpl]
 impl PredinexContract {
-    pub fn initialize(env: Env, token: Address) {
+    pub fn initialize(env: Env, token: Address, treasury_recipient: Address) {
         if env.storage().persistent().has(&DataKey::Token) {
             panic!("Already initialized");
         }
         env.storage().persistent().set(&DataKey::Token, &token);
+        env.storage().persistent().set(&DataKey::TreasuryRecipient, &treasury_recipient);
+        env.storage().persistent().set(&DataKey::Treasury, &0i128);
     }
 
     pub fn create_pool(
@@ -235,11 +239,24 @@ impl PredinexContract {
         };
         let total_pool_balance = pool.total_a + pool.total_b;
 
-        // Fee calculation (simplified 2% fee as in Clarity contract)
         let fee = (total_pool_balance * 2) / 100;
         let net_pool_balance = total_pool_balance - fee;
 
         let winnings = (user_winning_bet * net_pool_balance) / pool_winning_total;
+
+        let current_treasury: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Treasury, &(current_treasury + fee));
+
+        env.events().publish(
+            (Symbol::new(&env, "fee_collected"), pool_id),
+            fee,
+        );
 
         let token_address = env
             .storage()
@@ -250,7 +267,6 @@ impl PredinexContract {
 
         token_client.transfer(&env.current_contract_address(), &user, &winnings);
 
-        // Remove user bet to prevent double claim
         env.storage()
             .persistent()
             .remove(&DataKey::UserBet(pool_id, user.clone()));
@@ -263,8 +279,68 @@ impl PredinexContract {
         winnings
     }
 
+    pub fn get_treasury_balance(env: Env) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0)
+    }
+
+    pub fn get_treasury_recipient(env: Env) -> Option<Address> {
+        env.storage().persistent().get(&DataKey::TreasuryRecipient)
+    }
+
+    pub fn withdraw_treasury(env: Env, caller: Address, amount: i128) {
+        caller.require_auth();
+
+        let treasury_recipient: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::TreasuryRecipient)
+            .expect("Treasury recipient not set");
+
+        if caller != treasury_recipient {
+            panic!("Unauthorized");
+        }
+
+        let current_treasury: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Treasury)
+            .unwrap_or(0);
+
+        if amount > current_treasury {
+            panic!("Insufficient treasury balance");
+        }
+
+        let token_address = env
+            .storage()
+            .persistent()
+            .get::<_, Address>(&DataKey::Token)
+            .expect("Not initialized");
+        let token_client = token::Client::new(&env, &token_address);
+
+        token_client.transfer(&env.current_contract_address(), &treasury_recipient, &amount);
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Treasury, &(current_treasury - amount));
+
+        env.events().publish(
+            (Symbol::new(&env, "treasury_withdrawal"), treasury_recipient),
+            amount,
+        );
+    }
+
     pub fn get_pool(env: Env, pool_id: u32) -> Option<Pool> {
         env.storage().persistent().get(&DataKey::Pool(pool_id))
+    }
+
+    pub fn get_pool_count(env: Env) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::PoolCounter)
+            .unwrap_or(1)
     }
 
     fn get_pool_counter(env: &Env) -> u32 {
