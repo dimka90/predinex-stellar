@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getUserActivity, ActivityItem } from '../lib/stacks-api';
+import { predinexReadApi } from '../lib/adapters/predinex-read-api';
+import type { ActivityItem } from '../lib/adapters/types';
 
 interface UseUserActivityReturn {
     activities: ActivityItem[];
@@ -32,7 +33,7 @@ export function useUserActivity(
         setError(null);
 
         try {
-            const data = await getUserActivity(address, limit);
+            const data = await predinexReadApi.getUserActivity(address, limit);
             setActivities(data);
         } catch (e) {
             setError('Failed to load activity. Please try again.');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pool } from '@/app/lib/stacks-api';
+import type { Pool } from '@/app/lib/adapters/types';
 
 export default function BettingSection({ pool, poolId }: { pool: Pool, poolId: number }) {
     const [selectedOutcome, setSelectedOutcome] = useState<'A' | 'B' | null>(null);

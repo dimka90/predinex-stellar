@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useWallet } from './WalletAdapterProvider';
 import { useDisputes } from '../lib/hooks/useDisputes';
-import { getPool } from '../lib/stacks-api';
+import { fetchPredinexContractEvents, predinexReadApi } from '../lib/adapters/predinex-read-api';
 
 interface Dispute {
   id: number;
@@ -29,9 +29,7 @@ interface DisputeVote {
 
 async function fetchDisputesFromContract(): Promise<Dispute[]> {
   try {
-    const cfg = await import('../lib/runtime-config').then(m => m.getRuntimeConfig());
-    const response = await fetch(`${cfg.api.coreApiUrl}/extended/v1/contract/${cfg.contract.address}/${cfg.contract.name}/events?limit=100`);
-    const data = await response.json();
+    const data = await fetchPredinexContractEvents(100);
     
     const disputes: Dispute[] = [];
     const events = data.results || [];
@@ -39,7 +37,7 @@ async function fetchDisputesFromContract(): Promise<Dispute[]> {
     for (const event of events) {
       if (event.event === 'smart_contract_event' && event.data.event_name === 'dispute-created') {
         const eventData = event.data.event_data;
-        const pool = await getPool(eventData.pool_id);
+        const pool = await predinexReadApi.getPool(eventData.pool_id);
         
         disputes.push({
           id: Number(eventData.dispute_id),

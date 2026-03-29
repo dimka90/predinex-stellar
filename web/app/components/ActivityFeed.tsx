@@ -6,7 +6,7 @@ import {
     Trophy, Target, PlusCircle, Zap,
     ExternalLink, RefreshCw, TrendingUp, Clock
 } from 'lucide-react';
-import { ActivityItem } from '../lib/stacks-api';
+import type { ActivityItem } from '../lib/adapters/types';
 
 // --- Helpers ---
 

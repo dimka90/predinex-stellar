@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useIncentives } from '../lib/hooks/useIncentives';
 import { useWallet } from './WalletAdapterProvider';
-import { getRuntimeConfig } from '../lib/runtime-config';
-import { getPool, getUserBet } from '../lib/stacks-api';
+import { getStacksCoreApiBaseUrl, predinexReadApi } from '../lib/adapters/predinex-read-api';
 import { calculateTotalIncentive, DEFAULT_INCENTIVE_CONFIG, BetterIncentive } from '../lib/liquidity-incentives';
 import { Gift, TrendingUp, Award, Zap } from 'lucide-react';
 
@@ -25,8 +24,8 @@ interface ContractIncentive {
 
 async function fetchIncentivesFromContract(userAddress: string): Promise<ContractIncentive[]> {
   try {
-    const cfg = getRuntimeConfig();
-    const response = await fetch(`${cfg.api.coreApiUrl}/extended/v1/address/${userAddress}/transactions?limit=50&type=contract_call`);
+    const base = getStacksCoreApiBaseUrl();
+    const response = await fetch(`${base}/extended/v1/address/${userAddress}/transactions?limit=50&type=contract_call`);
     const data = await response.json();
     
     const incentives: ContractIncentive[] = [];
@@ -58,10 +57,10 @@ async function fetchIncentivesFromContract(userAddress: string): Promise<Contrac
 
 async function calculateRealIncentives(userAddress: string, poolId: number): Promise<ContractIncentive[]> {
   try {
-    const pool = await getPool(poolId);
+    const pool = await predinexReadApi.getPool(poolId);
     if (!pool) return [];
     
-    const userBet = await getUserBet(poolId, userAddress);
+    const userBet = await predinexReadApi.getUserBet(poolId, userAddress);
     if (!userBet || userBet.totalBet === 0) return [];
     
     const totalVolume = pool.totalA + pool.totalB;
@@ -107,13 +106,7 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
       setIsLoading(true);
       try {
         const contractIncentives = await fetchIncentivesFromContract(userAddress);
-        
-        const poolIds: number[] = [];
-        const cfg = getRuntimeConfig();
-        for (let i = 0; i < 10; i++) {
-          poolIds.push(i);
-        }
-        
+
         const pendingIncentives = await calculateRealIncentives(userAddress, poolId || 0);
         
         const allIncentives: BetterIncentive[] = [

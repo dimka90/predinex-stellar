@@ -5,7 +5,8 @@ import BettingSection from "../../components/BettingSection";
 import ClaimWinningsButton from "../../../components/ClaimWinningsButton";
 import { useWallet } from "../../components/WalletAdapterProvider";
 import { useEffect, useState } from "react";
-import { getPool, Pool, getUserBet } from "../../lib/stacks-api";
+import { predinexReadApi } from "../../lib/adapters/predinex-read-api";
+import type { Pool } from "../../lib/adapters/types";
 import { TrendingUp, Users, Clock } from "lucide-react";
 import { use } from "react";
 import ShareButton from "../../../components/ShareButton";
@@ -22,7 +23,7 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
     const [userBet, setUserBet] = useState<{ amountA: number; amountB: number } | null>(null);
 
     useEffect(() => {
-        getPool(poolId).then(data => {
+        predinexReadApi.getPool(poolId).then(data => {
             setPool(data);
             setIsLoading(false);
         });
@@ -30,7 +31,7 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
 
     useEffect(() => {
         if (stxAddress && poolId) {
-            getUserBet(poolId, stxAddress).then(bet => {
+            predinexReadApi.getUserBet(poolId, stxAddress).then(bet => {
                 setUserBet(bet);
             }).catch(() => setUserBet(null));
         }
@@ -42,8 +43,8 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
 
         try {
             const [newPool, newBet] = await Promise.all([
-                getPool(poolId),
-                stxAddress ? getUserBet(poolId, stxAddress) : Promise.resolve(null)
+                predinexReadApi.getPool(poolId),
+                stxAddress ? predinexReadApi.getUserBet(poolId, stxAddress) : Promise.resolve(null)
             ]);
 
             if (newPool) setPool(newPool);

@@ -1,4 +1,4 @@
-import { Pool } from '@/app/lib/stacks-api';
+import type { Pool } from '@/app/lib/adapters/types';
 import MarketCard from './MarketCard';
 import { Spinner } from './ui/spinner';
 import { Search } from 'lucide-react';

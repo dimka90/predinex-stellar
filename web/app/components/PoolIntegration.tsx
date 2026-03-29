@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useWallet } from './WalletAdapterProvider';
 import { useWalletConnect } from '../lib/hooks/useWalletConnect';
-import { openContractCall } from '@stacks/connect';
-import { uintCV, stringAsciiCV } from '@stacks/transactions';
 import { Loader2, AlertCircle, CheckCircle, TrendingUp, Users } from 'lucide-react';
 
 interface Pool {
