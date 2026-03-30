@@ -82,3 +82,88 @@ npm run lint
 npm run test
 npm run build
 ```
+
+## Dependency Caching Strategy
+
+This project uses both Node.js (npm) and Rust (Cargo) toolchains. Understanding the caching strategy ensures fast, deterministic installs across local and CI environments.
+
+### Package Manager
+
+**npm** is the standard package manager for this project. The `package-lock.json` lockfile ensures deterministic dependency resolution.
+
+### Cache Locations
+
+| Tool | Cache Location | Environment Variable |
+|------|-----------------|-------------------|
+| npm | `~/.npm` | `npm_config_cache` |
+| Cargo | `~/.cargo/registry` | `CARGO_HOME` |
+
+### Cache-Friendly Install Commands
+
+**Web (Node.js)**:
+```bash
+# Uses package-lock.json for deterministic installs
+npm ci
+
+# For local development (updates lockfile if needed)
+npm install
+```
+
+**Contracts (Rust)**:
+```bash
+# Uses Cargo.lock for deterministic builds
+cargo build
+
+# Fetch dependencies without building
+cargo fetch
+```
+
+### CI Caching Behavior
+
+The [CI workflow](../.github/workflows/ci.yml) uses GitHub Actions built-in caching:
+
+1. **Node.js**: `actions/setup-node@v4` with `cache: 'npm'` caches `~/.npm`
+2. **Rust**: `actions-rust-lang/setup-rust-toolchain@v1` caches `~/.cargo`
+
+Cache keys are based on lockfile hashes:
+- `web/package-lock.json` for npm
+- `contracts/predinex/Cargo.lock` for Rust
+
+### Local Development Best Practices
+
+1. **Use the bootstrap script** for initial setup:
+   ```bash
+   ./scripts/bootstrap.sh
+   ```
+
+2. **Clear cache if you encounter issues**:
+   ```bash
+   # npm
+   npm cache clean --force
+   rm -rf node_modules
+   npm ci
+
+   # Cargo
+   cargo clean
+   rm -rf ~/.cargo/registry/cache
+   ```
+
+3. **Verify cache is working**:
+   ```bash
+   npm config get cache
+   echo $CARGO_HOME
+   ```
+
+4. **Offline builds** (useful for verifying cache completeness):
+   ```bash
+   cargo build --offline
+   ```
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Slow installs | Check cache directory permissions; ensure `~/.npm` and `~/.cargo` are writable |
+| Lockfile conflicts | Run `npm ci` instead of `npm install` in CI; only update lockfile intentionally |
+| Missing Rust components | Run `rustup component add rustfmt clippy` |
+
