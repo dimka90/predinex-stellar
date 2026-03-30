@@ -5,8 +5,10 @@ This document provides instructions for developers looking to contribute to the 
 ## Prerequisites
 
 - **Node.js**: v18 or higher
-- **npm**: v8 or higher
+- **npm**: v8 or higher (npm is the standard package manager for this project)
 - **Wallet**: [Freighter](https://www.freighter.app/) (for testing Stellar interactions)
+
+> **Note**: This project uses `npm` as the sole package manager. Please do not use `pnpm` or `yarn` to avoid lockfile conflicts.
 
 ## Getting Started
 
