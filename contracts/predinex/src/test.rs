@@ -126,8 +126,7 @@ fn test_settle_and_claim() {
     client.settle_pool(&creator, &pool_id, &0);
 
     let pool = client.get_pool(&pool_id).unwrap();
-    assert!(pool.settled);
-    assert_eq!(pool.winning_outcome, Some(0));
+    assert_eq!(pool.status, PoolStatus::Settled(0));
 
     // User 1 claims
     let winnings = client.claim_winnings(&user1, &pool_id);
@@ -387,8 +386,7 @@ fn test_settle_pool_after_expiry_succeeds() {
     client.settle_pool(&creator, &pool_id, &0);
 
     let pool = client.get_pool(&pool_id).unwrap();
-    assert!(pool.settled);
-    assert_eq!(pool.winning_outcome, Some(0));
+    assert_eq!(pool.status, PoolStatus::Settled(0));
 
     // Verify claim still works after proper settlement
     let winnings = client.claim_winnings(&user, &pool_id);
@@ -489,15 +487,13 @@ fn test_settle_pool_unauthorized_then_authorized_succeeds() {
 
     // Pool must remain unsettled after the unauthorized attempt
     let pool = client.get_pool(&pool_id).unwrap();
-    assert!(!pool.settled);
-    assert_eq!(pool.winning_outcome, None);
+    assert_eq!(pool.status, PoolStatus::Open);
 
     // Authorized creator can still settle successfully
     client.settle_pool(&creator, &pool_id, &0);
 
     let pool = client.get_pool(&pool_id).unwrap();
-    assert!(pool.settled);
-    assert_eq!(pool.winning_outcome, Some(0));
+    assert_eq!(pool.status, PoolStatus::Settled(0));
 }
 
 #[test]
@@ -746,13 +742,14 @@ fn b3_invalid_winning_outcome_does_not_set_settled_flag() {
     assert!(result.is_err(), "invalid winning_outcome must panic");
 
     let pool = t.client.get_pool(&pool_id).expect("pool must still exist");
-    assert!(
-        !pool.settled,
-        "pool.settled must remain false after rejected settle"
+    assert_eq!(
+        pool.status,
+        PoolStatus::Open,
+        "pool.status must remain Open after rejected settle"
     );
 }
 
-/// B4: pool.winning_outcome must remain None after a rejected settle call.
+/// B4: pool.status must remain Open after a rejected settle call.
 #[test]
 fn b4_invalid_winning_outcome_does_not_write_winning_outcome() {
     let t = setup();
@@ -765,9 +762,10 @@ fn b4_invalid_winning_outcome_does_not_write_winning_outcome() {
     assert!(result.is_err(), "invalid winning_outcome must panic");
  
     let pool = t.client.get_pool(&pool_id).expect("pool must still exist");
-    assert!(
-        pool.winning_outcome.is_none(),
-        "pool.winning_outcome must remain None after rejected settle"
+    assert_eq!(
+        pool.status,
+        PoolStatus::Open,
+        "pool.status must remain Open after rejected settle"
     );
 }
  
@@ -782,12 +780,7 @@ fn b5_settle_pool_winning_outcome_0_is_valid() {
     t.client.settle_pool(&t.admin, &pool_id, &0u32);
  
     let pool = t.client.get_pool(&pool_id).expect("pool must exist");
-    assert!(pool.settled, "pool must be marked settled");
-    assert_eq!(
-        pool.winning_outcome,
-        Some(0u32),
-        "winning_outcome must be 0"
-    );
+    assert_eq!(pool.status, PoolStatus::Settled(0), "status must be Settled(0)");
 }
  
 /// B6: winning_outcome == 1 settles correctly (boundary — highest valid).
@@ -801,12 +794,7 @@ fn b6_settle_pool_winning_outcome_1_is_valid() {
     t.client.settle_pool(&t.admin, &pool_id, &1u32);
  
     let pool = t.client.get_pool(&pool_id).expect("pool must exist");
-    assert!(pool.settled, "pool must be marked settled");
-    assert_eq!(
-        pool.winning_outcome,
-        Some(1u32),
-        "winning_outcome must be 1"
-    );
+    assert_eq!(pool.status, PoolStatus::Settled(1), "status must be Settled(1)");
 }
 
 // ============================================================================
