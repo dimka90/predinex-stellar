@@ -1,0 +1,25 @@
+# #243 — path-based auto-labeling for contract, web, and docs changes.
+# Requires the `actions/labeler` workflow (see .github/workflows/labeler.yml).
+
+contract:
+  - changed-files:
+    - any-glob-to-any-file: 'contracts/**'
+
+web:
+  - changed-files:
+    - any-glob-to-any-file: 'web/**'
+
+docs:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'docs/**'
+      - '*.md'
+      - 'web/docs/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
+
+scripts:
+  - changed-files:
+    - any-glob-to-any-file: 'scripts/**'

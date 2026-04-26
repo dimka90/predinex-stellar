@@ -1,11 +1,32 @@
 'use client';
 
+// #225 — pool-integration content was backed entirely by mock fixtures.
+// The real integration is not yet available, so we render a clear placeholder
+// that communicates "coming soon" instead of mock data that looks live.
+// Set NEXT_PUBLIC_ENABLE_MOCK_POOLS=true to restore the fixture-driven UI
+// during local development or staging.
+
 import { useState, useEffect } from 'react';
 import { useWallet } from './WalletAdapterProvider';
 import { useWalletConnect } from '../lib/hooks/useWalletConnect';
 import { Loader2, AlertCircle, CheckCircle, TrendingUp, Users } from 'lucide-react';
 import { formatDisplayAddress } from '../lib/address-display';
-import { mockPools, type Pool } from '../lib/fixtures/poolIntegration';
+
+const MOCK_POOLS_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCK_POOLS === 'true';
+
+// Pool type kept inline — we only import the fixture module under the flag.
+type Pool = {
+  id: number;
+  title: string;
+  description: string;
+  creator: string;
+  outcomeA: string;
+  outcomeB: string;
+  totalA: number;
+  totalB: number;
+  settled: boolean;
+  expiryBlock: number;
+};
 
 interface PoolStats {
   totalPools: number;
@@ -14,11 +35,40 @@ interface PoolStats {
   settledPoolsCount: number;
 }
 
+interface PoolStats {
+  totalPools: number;
+  totalVolume: number;
+  activePoolsCount: number;
+  settledPoolsCount: number;
+}
+
+// Shown in production until real pool integration is wired.
+function PoolComingSoon() {
+  return (
+    <div className="space-y-8">
+      <div className="glass p-8 rounded-2xl border border-border">
+        <h1 className="text-4xl font-bold mb-2">Prediction Pools</h1>
+        <p className="text-muted-foreground">Explore and participate in active prediction markets</p>
+      </div>
+      <div className="glass p-10 rounded-2xl border border-border/50 text-center space-y-4">
+        <TrendingUp className="w-12 h-12 text-primary opacity-40 mx-auto" />
+        <h2 className="text-xl font-semibold">Pool integration coming soon</h2>
+        <p className="text-muted-foreground max-w-md mx-auto">
+          On-chain pool data will appear here once the integration is live on
+          the active network. Check back after the next contract deployment.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Contributors: see <code>CONTRIBUTING.md</code> for pool integration
+          steps.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function PoolIntegration() {
   const { isConnected } = useWallet();
   const { session } = useWalletConnect();
-  const { isConnected } = useAppKitAccount();
-  const { isMismatch, expectedNetworkName, switchNetwork } = useNetworkMismatch();
   const [pools, setPools] = useState<Pool[]>([]);
   const [stats, setStats] = useState<PoolStats>({
     totalPools: 0,
@@ -30,8 +80,8 @@ export default function PoolIntegration() {
   const [selectedPool, setSelectedPool] = useState<Pool | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch pools on component mount
   useEffect(() => {
+    if (!MOCK_POOLS_ENABLED) return;
     fetchPools();
   }, []);
 
@@ -39,10 +89,9 @@ export default function PoolIntegration() {
     setIsLoading(true);
     setError(null);
     try {
-      // In a real app, this would fetch from the Stacks API
-      // For now, we use fixtures for development/demo
-      setPools(mockPools);
-      updateStats(mockPools);
+      const { mockPools } = await import('../lib/fixtures/poolIntegration');
+      setPools(mockPools as Pool[]);
+      updateStats(mockPools as Pool[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch pools');
     } finally {
@@ -75,6 +124,8 @@ export default function PoolIntegration() {
   const formatSTX = (microSTX: number) => {
     return (microSTX / 1_000_000).toFixed(2);
   };
+
+  if (!MOCK_POOLS_ENABLED) return <PoolComingSoon />;
 
   return (
     <div className="space-y-8">
@@ -193,19 +244,14 @@ export default function PoolIntegration() {
                   </div>
 
                   {/* Action Button */}
-                  {!pool.settled && (isConnected || userData) && (
+                  {!pool.settled && isConnected && (
                     <div className="space-y-2">
-                      <button 
-                        disabled={isMismatch}
-                        className="w-full py-2 bg-primary hover:bg-violet-600 text-white font-bold rounded-lg transition-all disabled:opacity-50"
+                      <button
+                        className="w-full py-2 bg-primary hover:bg-violet-600 text-white font-bold rounded-lg transition-all"
                       >
                         Place Bet
                       </button>
                       {isMismatch && (
-                        <p className="text-xs text-red-500 font-medium text-center">
-                          Please switch to {expectedNetworkName} to interact.
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>

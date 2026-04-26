@@ -1,10 +1,16 @@
 'use client';
 
+// #223 — mock dispute data is now gated behind NEXT_PUBLIC_ENABLE_MOCK_DISPUTES.
+// In production builds the mock fallback is never used; the UI surfaces an
+// empty state when the contract returns no disputes.
+
 import { useState, useEffect, useCallback } from 'react';
 import { useDisputes } from '../hooks/useDisputes';
 import type { Dispute, DisputeVote, DisputeTabId } from './types';
 import { fetchDisputesFromContract } from './fetchDisputesFromContract';
-import { getMockDisputes } from './mockDisputes';
+
+const MOCK_DISPUTES_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_MOCK_DISPUTES === 'true';
 
 export function useDisputeManagement(userAddress: string | null | undefined) {
   const { addVote } = useDisputes();
@@ -27,8 +33,12 @@ export function useDisputeManagement(userAddress: string | null | undefined) {
         const fetchedDisputes = await fetchDisputesFromContract();
         if (fetchedDisputes.length > 0) {
           setDisputes(fetchedDisputes);
-        } else {
+        } else if (MOCK_DISPUTES_ENABLED) {
+          // Only use mock data when explicitly enabled (local dev / staging).
+          const { getMockDisputes } = await import('./mockDisputes');
           setDisputes(getMockDisputes());
+        } else {
+          setDisputes([]);
         }
       } catch (error) {
         console.error('Error loading disputes:', error);

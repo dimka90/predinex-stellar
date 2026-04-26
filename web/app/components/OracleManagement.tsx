@@ -1,13 +1,56 @@
 "use client";
 
+// #224 — oracle-management flows are backed by mock fixtures that should not
+// appear production-ready. The full UI is only rendered when
+// NEXT_PUBLIC_ENABLE_MOCK_ORACLE=true; otherwise we show a clear "coming soon"
+// placeholder so users and contributors understand the feature status.
+
 import { useState, useEffect } from 'react';
 import { formatDisplayAddress } from '../lib/address-display';
-import {
-  mockProviders,
-  mockSubmissions,
-  type OracleProvider,
-  type OracleSubmission,
-} from '../lib/fixtures/oracleManagement';
+
+const MOCK_ORACLE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCK_ORACLE === 'true';
+
+// Types are kept inline so we don't load the fixture module in production.
+interface OracleProvider {
+  id: number;
+  address: string;
+  isActive: boolean;
+  reliabilityScore: number;
+  totalResolutions: number;
+  successfulResolutions: number;
+  dataTypes: string[];
+  lastSubmission: number;
+}
+
+interface OracleSubmission {
+  id: number;
+  provider: string;
+  poolId: number;
+  outcome: string;
+  timestamp: number;
+  confidence: number;
+  verified: boolean;
+}
+
+// Placeholder rendered in production.
+function OracleComingSoon() {
+  return (
+    <div className="max-w-2xl mx-auto py-24 px-6 text-center">
+      <div className="glass p-10 rounded-2xl border border-border/50 space-y-4">
+        <h2 className="text-2xl font-bold">Oracle Management</h2>
+        <p className="text-muted-foreground">
+          On-chain oracle management is not yet available on this network.
+          This feature will surface automatically once the oracle contract is
+          deployed and indexed.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Contributors: see <code>CONTRIBUTING.md</code> for the oracle
+          integration roadmap.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function OracleManagement() {
   const [oracleProviders, setOracleProviders] = useState<OracleProvider[]>([]);
@@ -15,15 +58,19 @@ export default function OracleManagement() {
   const [selectedTab, setSelectedTab] = useState<'providers' | 'submissions' | 'register'>('providers');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load mock data from fixtures
+  // Only load mock fixtures when the feature flag is set.
   useEffect(() => {
-    // Delay setting to avoid synchronous render warning
-    const timer = setTimeout(() => {
-      setOracleProviders(mockProviders);
-      setOracleSubmissions(mockSubmissions);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!MOCK_ORACLE_ENABLED) return;
+    import('../lib/fixtures/oracleManagement').then(({ mockProviders, mockSubmissions }) => {
+      const timer = setTimeout(() => {
+        setOracleProviders(mockProviders as OracleProvider[]);
+        setOracleSubmissions(mockSubmissions as OracleSubmission[]);
+      }, 0);
+      return () => clearTimeout(timer);
+    });
+  }, [])
+
+  if (!MOCK_ORACLE_ENABLED) return <OracleComingSoon />;
 
   const formatTimestamp = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
