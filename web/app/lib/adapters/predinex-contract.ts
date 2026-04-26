@@ -1,0 +1,53 @@
+/**
+ * Write-side adapter: Stacks Connect contract calls for the Predinex pool contract.
+ * Keeps `openContractCall`, Clarity encoding, and contract identity out of UI components.
+ */
+import { openContractCall } from '@stacks/connect';
+import type { Finished } from '@stacks/connect';
+import { uintCV } from '@stacks/transactions';
+import { getRuntimeConfig } from '../runtime-config';
+import { callContract } from '../../../lib/appkit-transactions';
+
+export const predinexContract = {
+  /**
+   * Submit a `place-bet` contract call (wallet prompt).
+   */
+  async placeBet(params: {
+    poolId: number;
+    outcome: number;
+    amountMicroStx: number;
+    onFinish?: Finished;
+    onCancel?: () => void;
+  }): Promise<void> {
+    const { contract } = getRuntimeConfig();
+    await openContractCall({
+      contractAddress: contract.address,
+      contractName: contract.name,
+      functionName: 'place-bet',
+      functionArgs: [uintCV(params.poolId), uintCV(params.outcome), uintCV(params.amountMicroStx)],
+      onFinish: params.onFinish,
+      onCancel: params.onCancel,
+    });
+  },
+
+  /**
+   * Submit a `claim-winnings` contract call via the shared AppKit/network-aware path.
+   */
+  async claimWinnings(params: {
+    poolId: number;
+    onFinish?: Finished;
+    onCancel?: () => void;
+  }): Promise<void> {
+    const cfg = getRuntimeConfig();
+    const { contract } = cfg;
+    await callContract({
+      contractAddress: contract.address,
+      contractName: contract.name,
+      functionName: 'claim-winnings',
+      functionArgs: [uintCV(params.poolId)],
+      network: cfg.network,
+      onFinish: params.onFinish,
+      onCancel: params.onCancel,
+    });
+  },
+};

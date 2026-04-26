@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Clock, TrendingUp, Users, CheckCircle, XCircle } from 'lucide-react';
 import { ProcessedMarket } from '../lib/market-types';
 import { formatSTXAmount, formatTimeRemaining } from '../lib/market-utils';
+import { formatDisplayAddress } from '../lib/address-display';
 
 interface MarketCardProps {
   market: ProcessedMarket;
@@ -131,7 +132,7 @@ export default function MarketCard({ market }: MarketCardProps) {
           {/* Creator info */}
           <div className="flex items-center gap-1 text-xs text-muted-foreground pt-2 border-t border-muted/20">
             <Users className="w-3 h-3" />
-            <span>Created by {market.creator.slice(0, 8)}...{market.creator.slice(-4)}</span>
+            <span>Created by {formatDisplayAddress(market.creator)}</span>
           </div>
         </div>
       </div>

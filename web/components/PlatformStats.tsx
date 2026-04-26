@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getTotalVolume, getMarkets } from '@/app/lib/stacks-api';
+import { predinexReadApi } from '@/app/lib/adapters/predinex-read-api';
 import { BarChart3, Users, Layers, Activity } from 'lucide-react';
 import Card from './ui/Card';
 
@@ -15,8 +15,8 @@ export default function PlatformStats() {
 
     useEffect(() => {
         async function fetchStats() {
-            const volume = await getTotalVolume();
-            const markets = await getMarkets('all');
+            const volume = await predinexReadApi.getTotalVolume();
+            const markets = await predinexReadApi.getMarkets('all');
             setStats({
                 totalVolume: volume,
                 activeMarkets: markets.filter(m => !m.settled).length,

@@ -33,6 +33,18 @@ export const WALLETCONNECT_CONFIG = {
     },
   },
 
+  // Stellar / Soroban RPC endpoints (used by the Soroban event service)
+  soroban: {
+    mainnet: {
+      rpcUrl: 'https://mainnet.stellar.validationcloud.io/v1/soroban/rpc',
+      explorerUrl: 'https://stellar.expert/explorer/public',
+    },
+    testnet: {
+      rpcUrl: 'https://soroban-testnet.stellar.org',
+      explorerUrl: 'https://stellar.expert/explorer/testnet',
+    },
+  },
+
   // Supported wallet methods
   methods: [
     'stx_call_read_only',

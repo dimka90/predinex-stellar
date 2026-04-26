@@ -5,6 +5,7 @@ import { TrendingUp, Users, Clock, ExternalLink, CheckCircle, XCircle } from 'lu
 import { MarketStatistics } from '../../lib/dashboard-types';
 import { formatCurrency, formatPercentage } from '../../lib/dashboard-utils';
 import { formatTimeRemaining } from '../../lib/market-utils';
+import { formatDisplayAddress } from '../../lib/address-display';
 
 interface MarketStatsCardProps {
   markets: MarketStatistics[];
@@ -167,7 +168,7 @@ export default function MarketStatsCard({ markets, isLoading = false }: MarketSt
                 {/* Creator */}
                 <div className="mt-4 pt-3 border-t border-muted/20">
                   <div className="text-xs text-muted-foreground">
-                    Created by {market.creator.slice(0, 8)}...{market.creator.slice(-4)}
+                    Created by {formatDisplayAddress(market.creator)}
                   </div>
                 </div>
               </div>

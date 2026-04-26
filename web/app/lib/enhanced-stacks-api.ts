@@ -4,6 +4,15 @@ import { STACKS_MAINNET, STACKS_TESTNET, StacksNetwork } from "@stacks/network";
 import { fetchCallReadOnlyFunction, cvToValue, uintCV } from "@stacks/transactions";
 import { PoolData } from "./market-types";
 import { getRuntimeConfig } from "./runtime-config";
+import { withRetry, RetryOptions } from "./retry";
+
+/** Default retry policy for market discovery API calls. */
+const MARKET_DISCOVERY_RETRY: RetryOptions = {
+  maxAttempts: 4,
+  baseDelayMs: 500,
+  backoffFactor: 2,
+  maxDelayMs: 8000,
+};
 
 let didLogMarketDiscoveryNetwork = false;
 
@@ -20,7 +29,7 @@ function logMarketDiscoveryNetworkOnce(): void {
     const cfg = getRuntimeConfig();
     const stacksNetwork = getStacksNetwork();
     console.info(
-      `[market-discovery] network=${cfg.network} coreApiUrl=${stacksNetwork.coreApiUrl} contract=${cfg.contract.id}`
+      `[market-discovery] network=${cfg.network} stacksApiBaseUrl=${stacksNetwork.client.baseUrl} contract=${cfg.contract.id}`
     );
   } catch (e) {
     // If config is invalid/missing, fail-fast will throw elsewhere; avoid masking it here.
@@ -28,46 +37,60 @@ function logMarketDiscoveryNetworkOnce(): void {
 }
 
 /**
- * Get total number of pools from the contract
+ * Get total number of pools from the contract.
+ * Retries up to 4 times with exponential backoff on transient failures.
+ * Returns 0 and logs when all attempts are exhausted.
  */
 export async function getPoolCount(): Promise<number> {
   try {
     logMarketDiscoveryNetworkOnce();
     const cfg = getRuntimeConfig();
     const network = getStacksNetwork();
-    const result = await fetchCallReadOnlyFunction({
-      contractAddress: cfg.contract.address,
-      contractName: cfg.contract.name,
-      functionName: 'get-pool-count',
-      functionArgs: [],
-      senderAddress: cfg.contract.address,
-      network,
-    });
+
+    const result = await withRetry(
+      () =>
+        fetchCallReadOnlyFunction({
+          contractAddress: cfg.contract.address,
+          contractName: cfg.contract.name,
+          functionName: 'get-pool-count',
+          functionArgs: [],
+          senderAddress: cfg.contract.address,
+          network,
+        }),
+      MARKET_DISCOVERY_RETRY
+    );
 
     const value = cvToValue(result);
     return Number(value);
   } catch (e) {
-    console.error("Failed to fetch pool count", e);
+    console.error("Failed to fetch pool count after retries", e);
     return 0;
   }
 }
 
 /**
- * Get individual pool data with enhanced type safety
+ * Get individual pool data with enhanced type safety.
+ * Retries up to 4 times with exponential backoff on transient failures.
+ * Returns null and logs when all attempts are exhausted.
  */
 export async function getEnhancedPool(poolId: number): Promise<PoolData | null> {
   try {
     logMarketDiscoveryNetworkOnce();
     const cfg = getRuntimeConfig();
     const network = getStacksNetwork();
-    const result = await fetchCallReadOnlyFunction({
-      contractAddress: cfg.contract.address,
-      contractName: cfg.contract.name,
-      functionName: 'get-pool',
-      functionArgs: [uintCV(poolId)],
-      senderAddress: cfg.contract.address,
-      network,
-    });
+
+    const result = await withRetry(
+      () =>
+        fetchCallReadOnlyFunction({
+          contractAddress: cfg.contract.address,
+          contractName: cfg.contract.name,
+          functionName: 'get-pool',
+          functionArgs: [uintCV(poolId)],
+          senderAddress: cfg.contract.address,
+          network,
+        }),
+      MARKET_DISCOVERY_RETRY
+    );
 
     const value = cvToValue(result, true);
     if (!value) return null;
@@ -88,28 +111,35 @@ export async function getEnhancedPool(poolId: number): Promise<PoolData | null> 
       expiry: Number(value.expiry || 0),
     };
   } catch (e) {
-    console.error(`Failed to fetch pool ${poolId}`, e);
+    console.error(`Failed to fetch pool ${poolId} after retries`, e);
     return null;
   }
 }
 
 /**
- * Get multiple pools efficiently using batch fetching
+ * Get multiple pools efficiently using batch fetching.
+ * Retries up to 4 times with exponential backoff on transient failures.
+ * Falls back to individual fetching when the batch function is unavailable or returns unexpected data.
  */
 export async function getPoolsBatch(startId: number, count: number): Promise<PoolData[]> {
   try {
     logMarketDiscoveryNetworkOnce();
     const cfg = getRuntimeConfig();
     const network = getStacksNetwork();
+
     // Try to use the batch function if available
-    const result = await fetchCallReadOnlyFunction({
-      contractAddress: cfg.contract.address,
-      contractName: cfg.contract.name,
-      functionName: 'get-pools-batch',
-      functionArgs: [uintCV(startId), uintCV(count)],
-      senderAddress: cfg.contract.address,
-      network,
-    });
+    const result = await withRetry(
+      () =>
+        fetchCallReadOnlyFunction({
+          contractAddress: cfg.contract.address,
+          contractName: cfg.contract.name,
+          functionName: 'get-pools-batch',
+          functionArgs: [uintCV(startId), uintCV(count)],
+          senderAddress: cfg.contract.address,
+          network,
+        }),
+      MARKET_DISCOVERY_RETRY
+    );
 
     const value = cvToValue(result, true);
     if (!value || !Array.isArray(value)) {
@@ -141,32 +171,73 @@ export async function getPoolsBatch(startId: number, count: number): Promise<Poo
 
     return pools;
   } catch (e) {
-    console.error(`Failed to fetch pools batch ${startId}-${startId + count}`, e);
+    console.error(`Failed to fetch pools batch ${startId}-${startId + count} after retries`, e);
     // Fallback to individual fetching
     return await getPoolsIndividually(startId, count);
   }
 }
 
 /**
- * Fallback method to fetch pools individually
+ * Default concurrency limit for parallel pool fetching.
+ * Prevents overwhelming the upstream API with too many simultaneous requests.
  */
-async function getPoolsIndividually(startId: number, count: number): Promise<PoolData[]> {
-  const pools: PoolData[] = [];
-  const promises: Promise<PoolData | null>[] = [];
+const DEFAULT_POOL_FETCH_CONCURRENCY = 5;
 
-  for (let i = 0; i < count; i++) {
-    promises.push(getEnhancedPool(startId + i));
-  }
+/**
+ * Fetches items with bounded concurrency using a semaphore pattern.
+ * @param items Array of items to process
+ * @param fetcher Function to fetch each item
+ * @param concurrency Maximum concurrent requests
+ */
+async function fetchWithBoundedConcurrency<T, R>(
+  items: T[],
+  fetcher: (item: T) => Promise<R>,
+  concurrency: number = DEFAULT_POOL_FETCH_CONCURRENCY
+): Promise<R[]> {
+  const results: R[] = [];
+  const executing: Promise<void>[] = [];
 
-  const results = await Promise.all(promises);
-  
-  for (const pool of results) {
-    if (pool) {
-      pools.push(pool);
+  for (const item of items) {
+    const promise = fetcher(item).then((result) => {
+      results.push(result);
+    });
+
+    executing.push(promise);
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+      executing.splice(
+        executing.findIndex((p) => p === promise),
+        1
+      );
     }
   }
 
-  return pools;
+  await Promise.all(executing);
+  return results;
+}
+
+/**
+ * Fallback method to fetch pools individually with bounded concurrency.
+ * Uses a configurable concurrency limit to prevent request storms.
+ * @param startId Starting pool ID
+ * @param count Number of pools to fetch
+ * @param concurrency Maximum concurrent requests (default: 5)
+ */
+async function getPoolsIndividually(
+  startId: number,
+  count: number,
+  concurrency: number = DEFAULT_POOL_FETCH_CONCURRENCY
+): Promise<PoolData[]> {
+  const poolIds = Array.from({ length: count }, (_, i) => startId + i);
+  
+  const results = await fetchWithBoundedConcurrency(
+    poolIds,
+    (id) => getEnhancedPool(id),
+    concurrency
+  );
+
+  return results.filter((pool): pool is PoolData => pool !== null);
 }
 
 /**

@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { callContract } from '@/lib/appkit-transactions';
-import { uintCV } from '@stacks/transactions';
-import { useAppKitAccount } from '@reown/appkit/react';
+import { useState } from 'react';
+import { predinexContract } from '@/app/lib/adapters/predinex-contract';
+import { useWallet } from '../app/components/WalletAdapterProvider';
 import { Loader2, Coins } from 'lucide-react';
-import { getRuntimeConfig } from '../app/lib/runtime-config';
 
 interface ClaimWinningsButtonProps {
     poolId: number;
@@ -16,8 +14,7 @@ interface ClaimWinningsButtonProps {
 export default function ClaimWinningsButton({ poolId, isSettled, userHasWinnings }: ClaimWinningsButtonProps) {
     const [isPending, setIsPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { isConnected } = useAppKitAccount();
-    const { contract } = getRuntimeConfig();
+    const { isConnected } = useWallet();
 
     const handleClaim = async () => {
         if (!isConnected) return;
@@ -26,11 +23,8 @@ export default function ClaimWinningsButton({ poolId, isSettled, userHasWinnings
         setError(null);
 
         try {
-            await callContract({
-                contractAddress: contract.address,
-                contractName: contract.name,
-                functionName: 'claim-winnings',
-                functionArgs: [uintCV(poolId)],
+            await predinexContract.claimWinnings({
+                poolId,
                 onFinish: (data) => {
                     console.log('Claim submitted:', data);
                     setIsPending(false);

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Pool } from '@/app/lib/stacks-api';
+import type { Pool } from '@/app/lib/adapters/types';
 import { TrendingUp, Clock, ChevronRight } from 'lucide-react';
 import MarketCardHeader from './ui/MarketCardHeader';
 import ClaimWinningsButton from './ClaimWinningsButton';

@@ -9,8 +9,9 @@ import SortControls from "../components/SortControls";
 import MarketGrid from "../components/MarketGrid";
 import Pagination from "../components/Pagination";
 import { useMarketDiscovery } from "../lib/hooks/useMarketDiscovery";
+import RouteErrorBoundary from "../../components/RouteErrorBoundary";
 
-export default function MarketsPage() {
+function MarketsContent() {
   const {
     paginatedMarkets,
     isLoading,
@@ -126,5 +127,13 @@ export default function MarketsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function MarketsPage() {
+  return (
+    <RouteErrorBoundary routeName="Markets">
+      <MarketsContent />
+    </RouteErrorBoundary>
   );
 }

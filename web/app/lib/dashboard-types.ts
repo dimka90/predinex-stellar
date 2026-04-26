@@ -42,6 +42,7 @@ export interface MarketStatistics {
   currentOdds: { A: number; B: number };
   volumeTrend: number[];
   createdAt: number;
+  settledAt: number | null;
   expiresAt: number;
   status: 'active' | 'settled' | 'expired';
   outcomeAName: string;

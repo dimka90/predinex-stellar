@@ -4,12 +4,12 @@ import { useWalletConnect } from '@/app/lib/hooks/useWalletConnect';
 import { emitWalletEvent } from '@/app/lib/wallet-telemetry';
 import { Loader2, Wallet } from 'lucide-react';
 import { WalletService } from '@/app/lib/wallet-service';
-import { useAppKit } from '@/lib/hooks/useAppKit';
+import { useWallet } from './WalletAdapterProvider';
 import { useEffect, useRef, useState } from 'react';
 
 export function WalletConnectButton() {
   const { session } = useWalletConnect();
-  const { open, status } = useAppKit();
+  const { connect, isLoading } = useWallet();
 
   // Track when we initiated the connect attempt so we can measure duration
   const connectStartRef = useRef<number | null>(null);
@@ -18,15 +18,14 @@ export function WalletConnectButton() {
   // AppKit's async status updates.
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Derive connecting state from AppKit's account status
-  const appKitConnecting = status === 'connecting';
+  // Derive connecting state from adapter's loading status
+  const adapterConnecting = isLoading;
 
   // Show spinner whenever we're waiting for the user or the wallet response
-  const showSpinner = isConnecting || appKitConnecting;
+  const showSpinner = isConnecting || adapterConnecting;
 
   useEffect(() => {
-    if (status === 'connecting') {
-      // AppKit has picked up the connection attempt
+    if (isLoading) {
       if (connectStartRef.current === null) {
         connectStartRef.current = Date.now();
         emitWalletEvent({
@@ -36,40 +35,44 @@ export function WalletConnectButton() {
       }
     }
 
-    if (status === 'connected') {
-      const durationMs =
-        connectStartRef.current !== null
-          ? Date.now() - connectStartRef.current
-          : undefined;
+    if (session?.isConnected && connectStartRef.current) {
+      const durationMs = Date.now() - connectStartRef.current;
       connectStartRef.current = null;
-      setIsConnecting(false);
-      emitWalletEvent({
-        event: 'wallet.connect.success',
-        timestamp: new Date().toISOString(),
-        durationMs,
-      });
+      
+      const timer = setTimeout(() => {
+        setIsConnecting(false);
+        emitWalletEvent({
+          event: 'wallet.connect.success',
+          timestamp: new Date().toISOString(),
+          durationMs,
+        });
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
-    if (status === 'disconnected' && isConnecting) {
-      // User dismissed the modal or the connection was rejected
+    if (!session?.isConnected && !isLoading && isConnecting) {
       const durationMs =
         connectStartRef.current !== null
           ? Date.now() - connectStartRef.current
           : undefined;
       connectStartRef.current = null;
-      setIsConnecting(false);
-      emitWalletEvent({
-        event: 'wallet.connect.cancel',
-        timestamp: new Date().toISOString(),
-        durationMs,
-      });
+      
+      const timer = setTimeout(() => {
+        setIsConnecting(false);
+        emitWalletEvent({
+          event: 'wallet.connect.cancel',
+          timestamp: new Date().toISOString(),
+          durationMs,
+        });
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [status, isConnecting]);
+  }, [isLoading, isConnecting, session?.isConnected]);
 
   const handleConnect = async () => {
     setIsConnecting(true);
     try {
-      await open();
+      await connect();
     } catch (err) {
       const durationMs =
         connectStartRef.current !== null

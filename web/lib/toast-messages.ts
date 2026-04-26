@@ -1,0 +1,66 @@
+import type { ToastType } from '../components/ui/Toast';
+import type { ConnectivityIssue } from '../app/lib/network-errors';
+import { getConnectivityMessage } from '../app/lib/network-errors';
+
+/** Minimum bet in STX — shared by validation, inline hints, and toast copy. */
+export const MIN_BET_STX = 0.1;
+
+export type ToastPayload = { message: string; type: ToastType };
+
+/**
+ * Typed catalog for user-facing toast copy. Prefer these over ad hoc strings
+ * so messages stay consistent and tests can assert against exports.
+ */
+export const toastMessages = {
+  bet: {
+    invalidAmount: {
+      message: 'Please enter a valid bet amount greater than 0.',
+      type: 'error' as const,
+    },
+    minBet(): ToastPayload {
+      return {
+        message: `Minimum bet amount is ${MIN_BET_STX} STX.`,
+        type: 'error',
+      };
+    },
+    insufficientBalance(balance: number): ToastPayload {
+      return {
+        message: `Insufficient balance. You have ${balance} STX.`,
+        type: 'error',
+      };
+    },
+    success: {
+      message: 'Bet placed successfully!',
+      type: 'success' as const,
+    },
+    transactionCancelled: {
+      message: 'Transaction cancelled',
+      type: 'info' as const,
+    },
+  },
+  network: {
+    /** Shown when the wallet prompt is slow to appear. */
+    slowConfirmation: {
+      message:
+        'Network is slow. Waiting for wallet confirmation... You can keep this tab open.',
+      type: 'warning' as const,
+    },
+  },
+};
+
+export function connectivityErrorToast(
+  issue: ConnectivityIssue,
+  actionLabel: string
+): ToastPayload {
+  return {
+    message: getConnectivityMessage(issue, actionLabel),
+    type: 'error',
+  };
+}
+
+export function showToastPayload(
+  showToast: (message: string, type?: ToastType) => void,
+  payload: ToastPayload
+): void {
+  showToast(payload.message, payload.type);
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { useStacks } from './StacksProvider';
+import { useWallet } from './WalletAdapterProvider';
 import { Wallet, Lock } from 'lucide-react';
 
 interface AuthGuardProps {
@@ -10,9 +10,9 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, fallback }: AuthGuardProps) {
-    const { userData, authenticate } = useStacks();
+    const { isConnected, connect } = useWallet();
 
-    if (!userData) {
+    if (!isConnected) {
         return fallback || (
             <div className="pt-32 pb-20 max-w-2xl mx-auto px-4 sm:px-6">
                 <div className="glass p-8 rounded-2xl border border-border text-center">
@@ -22,7 +22,7 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
                         You need to connect your wallet to access this feature.
                     </p>
                     <button
-                        onClick={authenticate}
+                        onClick={connect}
                         className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-6 py-3 rounded-full border border-primary/20 transition-colors font-medium mx-auto hover:scale-105 transform transition-transform"
                     >
                         <Wallet className="w-5 h-5" />

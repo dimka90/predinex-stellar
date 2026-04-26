@@ -32,7 +32,7 @@ describe('runtime-config', () => {
     expect(() => getRuntimeConfig()).toThrow(/Missing required config: NEXT_PUBLIC_NETWORK/i);
   });
 
-  it("fails fast with actionable error when NEXT_PUBLIC_NETWORK is invalid", () => {
+  it('fails fast with actionable error when NEXT_PUBLIC_NETWORK is invalid', () => {
     process.env.NEXT_PUBLIC_NETWORK = 'devnet';
 
     expect(() => getRuntimeConfig()).toThrow(/Invalid config NEXT_PUBLIC_NETWORK/i);

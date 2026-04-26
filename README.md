@@ -8,7 +8,7 @@
 
 ## 🏗 System Architecture
 
-The project centers around the `predinex` Soroban smart contract which manages pool states, betting logic, and fund distribution. It utilizes the Stellar Asset Contract (SAC) for secure token transfers.
+The project centers around the `predinex`,  Soroban smart contract which manages pool states, betting logic, and fund distribution. It utilizes the Stellar Asset Contract (SAC) for secure token transfers.
 
 ```mermaid
 graph TD
@@ -84,13 +84,20 @@ stateDiagram-v2
    cd predinex-stellar
    ```
 
-2. **Build the Contract**
+2. **Quick Start (Recommended)**
+
+   Run the bootstrap script to install all dependencies and verify your environment:
+   ```bash
+   ./scripts/bootstrap.sh
+   ```
+
+3. **Build the Contract**
    ```bash
    cd contracts/predinex
    stellar contract build
    ```
 
-3. **Run Tests**
+4. **Run Tests**
    ```bash
    cargo test
    ```
@@ -112,6 +119,7 @@ Predinex Stellar follows a phased approach to bring a premium betting experience
 ## 🤝 Contributing & Releases
 
 We welcome contributions! Please see our development guides for more information:
+- [Local End-to-End Runbook](./docs/local-runbook.md) — build the contract, deploy to testnet, and wire the web app from a clean checkout
 - [Frontend Development](./web/DEVELOPMENT.md)
 - [Release Process](./RELEASE.md)
 

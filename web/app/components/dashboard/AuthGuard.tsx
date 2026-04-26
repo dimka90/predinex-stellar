@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStacks } from '../StacksProvider';
+import { useWallet } from '../WalletAdapterProvider';
 import { Wallet, AlertCircle } from 'lucide-react';
 
 interface AuthGuardProps {
@@ -17,15 +17,15 @@ export default function AuthGuard({
   showConnectPrompt = true 
 }: AuthGuardProps) {
   const router = useRouter();
-  const { userData, authenticate, isLoading } = useStacks();
+  const { isConnected, connect, isLoading } = useWallet();
 
   useEffect(() => {
-    if (!isLoading && !userData) {
+    if (!isLoading && !isConnected) {
       if (!showConnectPrompt) {
         router.push(redirectTo);
       }
     }
-  }, [userData, isLoading, router, redirectTo, showConnectPrompt]);
+  }, [isConnected, isLoading, router, redirectTo, showConnectPrompt]);
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -40,7 +40,7 @@ export default function AuthGuard({
   }
 
   // Show connect prompt if user is not authenticated and prompt is enabled
-  if (!userData && showConnectPrompt) {
+  if (!isConnected && showConnectPrompt) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="max-w-md w-full mx-4">
@@ -56,7 +56,7 @@ export default function AuthGuard({
             
             <div className="space-y-4">
               <button
-                onClick={authenticate}
+                onClick={connect}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
               >
                 <Wallet className="w-5 h-5" />

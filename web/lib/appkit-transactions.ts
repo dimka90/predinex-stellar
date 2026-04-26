@@ -1,14 +1,15 @@
 import { openContractCall } from '@stacks/connect';
+import type { Finished } from '@stacks/connect';
 import { STACKS_MAINNET, STACKS_TESTNET } from '@stacks/network';
-import { PostConditionMode } from '@stacks/transactions';
+import { PostConditionMode, ClarityValue } from '@stacks/transactions';
 
 export async function callContract(params: {
   contractAddress: string;
   contractName: string;
   functionName: string;
-  functionArgs: any[];
+  functionArgs: ClarityValue[];
   network?: 'mainnet' | 'testnet';
-  onFinish?: (data: any) => void;
+  onFinish?: Finished;
   onCancel?: () => void;
 }) {
   const network = params.network === 'testnet' ? STACKS_TESTNET : STACKS_MAINNET;

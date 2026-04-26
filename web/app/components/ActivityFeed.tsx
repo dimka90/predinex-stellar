@@ -6,7 +6,7 @@ import {
     Trophy, Target, PlusCircle, Zap,
     ExternalLink, RefreshCw, TrendingUp, Clock
 } from 'lucide-react';
-import { ActivityItem } from '../lib/stacks-api';
+import type { ActivityItem } from '../lib/adapters/types';
 
 // --- Helpers ---
 
@@ -118,7 +118,7 @@ const ActivityRow = memo(function ActivityRow({ item, nowSeconds }: { item: Acti
 
     const getEventLabel = () => {
         if (!item.event) return null;
-        
+
         switch (item.event.type) {
             case 'bet':
                 return `Bet on ${item.event.outcome === 0 ? 'Outcome A' : 'Outcome B'}`;

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DashboardData, DashboardFilters, ClaimTransaction } from '../dashboard-types';
 import { fetchDashboardData, claimWinnings } from '../dashboard-api';
+import { invalidateOnClaimWinnings } from '../cache-invalidation';
 
 interface UseDashboardDataState {
   // Data
@@ -159,6 +160,11 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
       const result = await claimWinnings(poolId);
       
       if (result.success) {
+        // Invalidate all caches affected by this claim
+        if (userAddress) {
+          invalidateOnClaimWinnings({ poolId, userAddress });
+        }
+
         // Update claim status to success
         setClaimTransactions(prev => new Map(prev).set(poolId, {
           poolId,

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { Pool } from '../lib/stacks-api';
+import type { Pool } from '../lib/adapters/types';
 
 interface UserBet {
   pool: Pool;

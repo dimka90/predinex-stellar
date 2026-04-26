@@ -3,6 +3,7 @@
 import { fetchCallReadOnlyFunction, cvToValue, principalCV, uintCV } from "@stacks/transactions";
 import { STACKS_MAINNET, STACKS_TESTNET, type StacksNetwork } from "@stacks/network";
 import { UserBet, BetHistory, DashboardData } from "./dashboard-types";
+import { PoolData } from "./market-types";
 import { fetchAllPools, getEnhancedPool } from "./enhanced-stacks-api";
 import { 
   calculatePortfolio, 
@@ -76,7 +77,7 @@ export async function getUserBets(userAddress: string): Promise<UserBet[]> {
  * Create a UserBet object from pool data and bet information
  */
 async function createUserBet(
-  pool: any,
+  pool: PoolData,
   userAddress: string,
   outcome: 'A' | 'B',
   betAmount: number

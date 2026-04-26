@@ -71,5 +71,3 @@ export const ANIMATION_DURATION = {
   slow: 'duration-500',
 } as const;
 
-export const CONTRACT_ADDRESS = "SP2WWKKF25SED3K5P6ETY7MDDNBQH50GPSP8EJM8N";
-export const CONTRACT_NAME = "predinex-pool-v1";

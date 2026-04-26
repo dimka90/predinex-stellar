@@ -47,15 +47,40 @@ git push origin v1.2.3
 
 ---
 
-## 📝 Changelog Template
-Add a new entry to `CHANGELOG.md` using this format:
+## 📝 Changelog Categories
+
+Changes are grouped by delivery area so each stakeholder can find relevant updates quickly.
+Add a new entry to `CHANGELOG.md` using the following format:
 
 ```markdown
 ## [v1.2.3] - 2026-03-25
-### Added
-- Feature description here.
-### Fixed
-- Bug fix description here.
-### Changed
-- Refinement description here.
+
+### ⛓ Contract
+- Changes to Clarity contracts in `contracts/`.
+
+### 🌐 Web
+- Changes to the Next.js frontend in `web/`.
+
+### 📖 Docs
+- README, RELEASE, architectural docs, inline documentation.
+
+### ⚙️ Ops & CI
+- GitHub Actions workflows, `scripts/`, tooling, dependency updates.
 ```
+
+### Label → Category mapping
+
+Every PR should carry one `area:` label. GitHub's automatic release notes
+(`releases/new` → *Generate release notes*) use `.github/release.yml` to
+sort merged PRs into the same four categories automatically.
+
+| Label | Changelog section | Covers |
+|---|---|---|
+| `area: contract` | ⛓ Contract | `contracts/` — Clarity source, tests, deployment scripts |
+| `area: web` | 🌐 Web | `web/` — Next.js pages, components, hooks, styles |
+| `area: docs` | 📖 Docs | `*.md` files, `web/docs/`, inline code comments |
+| `area: ops` | ⚙️ Ops & CI | `.github/`, `scripts/`, tooling, dependency bumps |
+
+Cross-area PRs should carry the label for the *primary* change area.
+The `bug` and `enhancement` labels can be added alongside an `area:` label
+for finer-grained filtering.

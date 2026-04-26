@@ -8,7 +8,7 @@
  * functions to child components through React Context.
  */
 
-import { AppConfig, UserSession } from '@stacks/connect';
+import { AppConfig, UserData, UserSession } from '@stacks/connect';
 import { ReactNode, createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { connectWallet, WalletType } from '../lib/wallet-connector';
 import WalletModal from './WalletModal';
@@ -24,9 +24,9 @@ interface StacksContextValue {
     /** The Stacks UserSession instance for managing authentication */
     userSession: UserSession;
     /** Current user data from the authenticated wallet, null if not authenticated */
-    userData: any;
+    userData: UserData | null;
     /** Function to manually set user data */
-    setUserData: (data: any) => void;
+    setUserData: (data: UserData | null) => void;
     /** Function to sign out the current user */
     signOut: () => void;
     /** Function to initiate wallet connection flow */
@@ -37,7 +37,7 @@ interface StacksContextValue {
     isLoading: boolean;
 }
 
-const StacksContext = createContext<StacksContextValue>({} as any);
+const StacksContext = createContext<StacksContextValue | undefined>(undefined);
 
 /**
  * StacksProvider is the root context provider for Stacks-related functionality.
@@ -48,7 +48,7 @@ const StacksContext = createContext<StacksContextValue>({} as any);
  */
 export function StacksProvider({ children }: { children: ReactNode }) {
     // State for storing authenticated user data (profile, addresses, etc.)
-    const [userData, setUserData] = useState<any>(null);
+    const [userData, setUserData] = useState<UserData | null>(null);
     // Tracks initial session verification to prevent flickers or unauthorized access
     const [isLoading, setIsLoading] = useState(true);
     // Controls the visibility of the multi-wallet selection modal
@@ -179,7 +179,11 @@ export function StacksProvider({ children }: { children: ReactNode }) {
  * @returns The current StacksContextValue
  */
 export function useStacks() {
-    return useContext(StacksContext);
+    const context = useContext(StacksContext);
+    if (!context) {
+        throw new Error('useStacks must be used within a StacksProvider');
+    }
+    return context;
 }
 // Entry point for Stacks network integration
 // Entry point for Stacks network integration

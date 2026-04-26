@@ -5,8 +5,11 @@ Next.js 14 application providing the user interface for Predinex Prediction Mark
 ## Tech Stack
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: Tailwind CSS
-- **Blockchain Interop**: `@stacks/connect`, `@stacks/transactions`
+- **Blockchain Interop**: Stellar SDK (Soroban integration)
 - **Icons**: Lucide React
+
+> [!NOTE]
+> **Migration Status**: The frontend is currently transitioning from Stacks to Stellar. While core branding and documentation have been updated, some underlying legacy components are still being migrated to full Soroban support.
 
 ## UI Kit (Design System)
 The project includes a custom UI kit located in `components/ui/` designed for a premium, institutional-grade experience:
@@ -18,9 +21,9 @@ The project includes a custom UI kit located in `components/ui/` designed for a 
 - **Toast**: Ephemeral notifications for transaction feedback.
 
 ## Key Features
-- **Market Discovery**: Advanced filtering, search, and sorting system.
-- **Wallet Integration**: Unified support for Leather, Xverse, and WalletConnect.
-- **Dashboard**: Real-time portfolio tracking and performance metrics.
+- **Market Discovery**: Advanced filtering, search, and sorting system on Stellar.
+- **Wallet Integration**: Support for Freighter and other Stellar-compatible wallets (via WalletConnect).
+- **Dashboard**: Real-time portfolio tracking and performance metrics on Soroban.
 - **Transitions**: Native-like smooth page and modal animations.
 
 ## Development

@@ -3,7 +3,7 @@
  * Supports Leather, Xverse, and WalletConnect
  */
 
-import { showConnect, UserSession } from '@stacks/connect';
+import { FinishedAuthData, showConnect, UserSession } from '@stacks/connect';
 import { handleWalletError, WalletError } from './wallet-errors';
 
 /**
@@ -29,7 +29,7 @@ export interface WalletConnectionOptions {
     /** The Stacks UserSession instance to manage the auth state */
     userSession: UserSession;
     /** Callback triggered when the connection is successfully established */
-    onFinish?: (authData: any) => void;
+    onFinish?: (authData: FinishedAuthData) => void;
     /** Callback triggered if the user cancels the connection process */
     onCancel?: () => void;
 }
@@ -75,7 +75,7 @@ export async function connectWallet(options: WalletConnectionOptions): Promise<v
 async function connectExtensionWallet(
     walletType: 'leather' | 'xverse',
     userSession: UserSession,
-    onFinish?: (authData: any) => void,
+    onFinish?: (authData: FinishedAuthData) => void,
     onCancel?: () => void
 ): Promise<void> {
     await showConnect({
@@ -110,7 +110,7 @@ async function connectExtensionWallet(
  */
 async function connectWalletConnect(
     userSession: UserSession,
-    onFinish?: (authData: any) => void,
+    onFinish?: (authData: FinishedAuthData) => void,
     onCancel?: () => void
 ): Promise<void> {
     await showConnect({

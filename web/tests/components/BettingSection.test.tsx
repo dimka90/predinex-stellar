@@ -1,45 +1,32 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BettingSection from '../../app/components/BettingSection';
-import * as StacksProvider from '../../app/components/StacksProvider';
-import * as StacksConnect from '@stacks/connect';
+import * as WalletAdapterProvider from '../../app/components/WalletAdapterProvider';
 import { useToast } from '../../providers/ToastProvider';
+import { predinexContract } from '../../app/lib/adapters/predinex-contract';
+import { renderWithProviders } from '../helpers/renderWithProviders';
 
-// Mock runtime-config so getRuntimeConfig() doesn't throw in tests
-vi.mock('../../app/lib/runtime-config', () => ({
-  getRuntimeConfig: vi.fn(() => ({
-    network: 'testnet',
-    contract: {
-      address: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
-      name: 'predinex-pool',
-      id: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.predinex-pool',
-    },
-    api: {
-      coreApiUrl: 'https://api.testnet.hiro.so',
-      explorerUrl: 'https://explorer.hiro.so?chain=testnet',
-      rpcUrl: 'https://api.testnet.hiro.so',
-    },
-  })),
+// Mock WalletAdapterProvider hook
+vi.mock('../../app/components/WalletAdapterProvider', () => ({
+  useWallet: vi.fn(),
+  WalletAdapterProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// Mock dependencies
-vi.mock('../../app/components/StacksProvider', () => ({
-  useStacks: vi.fn(),
-}));
-
-vi.mock('@stacks/connect', () => ({
-  openContractCall: vi.fn(),
+vi.mock('../../app/lib/adapters/predinex-contract', () => ({
+  predinexContract: {
+    placeBet: vi.fn(),
+  },
 }));
 
 vi.mock('../../providers/ToastProvider', () => ({
   useToast: vi.fn(),
+  // ToastProvider is used by renderWithProviders; pass children through so the
+  // wrapper renders without throwing "No ToastProvider export" errors.
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-/** Minimal wrapper that satisfies all context requirements for BettingSection */
-function renderWithProviders(ui: React.ReactElement) {
-  return render(ui);
-}
 
 const mockPool = {
   id: 0,
@@ -56,6 +43,24 @@ const mockPool = {
   status: 'active' as const,
 };
 
+const connectedWallet = {
+  chain: 'stacks' as const,
+  isConnected: true,
+  isLoading: false,
+  address: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+};
+
+const disconnectedWallet = {
+  chain: 'stacks' as const,
+  isConnected: false,
+  isLoading: false,
+  address: null,
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+};
+
 describe('BettingSection', () => {
   const showToast = vi.fn();
 
@@ -67,15 +72,7 @@ describe('BettingSection', () => {
   });
 
   it('renders betting section with pool information', () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
-      userSession: {} as any,
-      setUserData: vi.fn(),
-      openWalletModal: vi.fn(),
-      isLoading: false,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
-    } as any);
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
 
     renderWithProviders(<BettingSection pool={mockPool} poolId={0} />);
 
@@ -85,16 +82,7 @@ describe('BettingSection', () => {
   });
 
   it('prompts authentication when user is not logged in', () => {
-    const authenticate = vi.fn();
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: null,
-      userSession: {} as any,
-      setUserData: vi.fn(),
-      openWalletModal: vi.fn(),
-      isLoading: false,
-      authenticate,
-      signOut: vi.fn(),
-    } as any);
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(disconnectedWallet);
 
     renderWithProviders(<BettingSection pool={mockPool} poolId={0} />);
 
@@ -103,15 +91,7 @@ describe('BettingSection', () => {
   });
 
   it('shows error toast for empty bet amount', async () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
-      userSession: {} as any,
-      setUserData: vi.fn(),
-      openWalletModal: vi.fn(),
-      isLoading: false,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
-    } as any);
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
 
     const user = userEvent.setup();
     renderWithProviders(<BettingSection pool={mockPool} poolId={0} />);
@@ -121,22 +101,14 @@ describe('BettingSection', () => {
     await user.click(betButton);
 
     expect(showToast).toHaveBeenCalledWith(
-      'Please enter a valid bet amount greater than 0.',
-      'error'
+      toastMessages.bet.invalidAmount.message,
+      toastMessages.bet.invalidAmount.type
     );
-    expect(vi.mocked(StacksConnect.openContractCall)).not.toHaveBeenCalled();
+    expect(vi.mocked(predinexContract.placeBet)).not.toHaveBeenCalled();
   });
 
   it('shows error toast for bet below minimum amount', async () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
-      userSession: {} as any,
-      setUserData: vi.fn(),
-      openWalletModal: vi.fn(),
-      isLoading: false,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
-    } as any);
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
 
     const user = userEvent.setup();
     renderWithProviders(<BettingSection pool={mockPool} poolId={0} />);
@@ -148,21 +120,12 @@ describe('BettingSection', () => {
     await user.click(betButton);
 
     expect(showToast).toHaveBeenCalledWith('Minimum bet amount is 0.1 STX.', 'error');
-    expect(vi.mocked(StacksConnect.openContractCall)).not.toHaveBeenCalled();
+    expect(vi.mocked(predinexContract.placeBet)).not.toHaveBeenCalled();
   });
 
-  it('calls openContractCall with correct parameters when placing bet', async () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
-      userSession: {} as any,
-      setUserData: vi.fn(),
-      openWalletModal: vi.fn(),
-      isLoading: false,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
-    } as any);
-
-    vi.mocked(StacksConnect.openContractCall).mockResolvedValue({} as never);
+  it('calls predinexContract.placeBet with correct parameters when placing bet', async () => {
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
+    vi.mocked(predinexContract.placeBet).mockResolvedValue(undefined);
 
     const user = userEvent.setup();
     renderWithProviders(<BettingSection pool={mockPool} poolId={0} />);
@@ -174,32 +137,20 @@ describe('BettingSection', () => {
     await user.click(betButton);
 
     await waitFor(() => {
-      expect(StacksConnect.openContractCall).toHaveBeenCalledWith(
+      expect(predinexContract.placeBet).toHaveBeenCalledWith(
         expect.objectContaining({
-          functionName: 'place-bet',
-          functionArgs: expect.arrayContaining([
-            expect.anything(), // poolId
-            expect.anything(), // outcome (0)
-            expect.anything(), // amount (1500000 microSTX)
-          ]),
+          poolId: 0,
+          outcome: 0,
+          amountMicroStx: 1_500_000,
         })
       );
     });
   });
 
   it('disables buttons while betting is in progress', async () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } } as unknown as any,
-      userSession: {} as any,
-      setUserData: vi.fn(),
-      openWalletModal: vi.fn(),
-      isLoading: false,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
-    } as any);
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
 
-    // Make openContractCall hang
-    vi.mocked(StacksConnect.openContractCall).mockImplementation(
+    vi.mocked(predinexContract.placeBet).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
@@ -221,11 +172,7 @@ describe('BettingSection', () => {
   });
 
   it('renders without provider errors when wrapped in ToastProvider', () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: null,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
-    });
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(disconnectedWallet);
 
     // Should not throw a "useToast must be used within a ToastProvider" error
     expect(() => renderWithProviders(<BettingSection pool={mockPool} poolId={0} />)).not.toThrow();

@@ -1,9 +1,9 @@
 'use client';
-import { useAppKit } from './useAppKit';
+import { useWallet } from '../../app/components/WalletAdapterProvider';
 import { useQuery } from '@tanstack/react-query';
 
 export function useStacksAccount() {
-  const { address, isConnected } = useAppKit();
+  const { address, isConnected } = useWallet();
 
   const { data: balance } = useQuery({
     queryKey: ['stx-balance', address],

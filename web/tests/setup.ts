@@ -12,3 +12,21 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// Mock wallet connection hook with async factory
+vi.mock('@/app/hooks/useWalletConnection', async () => {
+  const { vi } = await import('vitest');
+  return {
+    useWalletConnection: vi.fn(() => ({
+      leather: false,
+      xverse: false,
+      walletconnect: true,
+      hasAnyWallet: true,
+    })),
+    useWalletState: vi.fn(() => ({
+      isConnected: false,
+      address: null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    })),
+  };
+});

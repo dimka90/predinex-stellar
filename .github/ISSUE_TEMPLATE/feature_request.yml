@@ -1,0 +1,36 @@
+name: Feature request
+description: Propose a new capability with clear scope and success criteria.
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Explain the product, contract, frontend, or DevOps area involved.
+      placeholder: Where would this feature help, and who benefits from it?
+    validations:
+      required: true
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem statement
+      description: Describe the gap or opportunity this feature addresses.
+      placeholder: What pain point or missing capability are we trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: List the outcomes required for the feature to be considered complete.
+      placeholder: "Example: Users can complete the new flow and the result is visible in the UI or contract output."
+    validations:
+      required: true
+  - type: textarea
+    id: test-considerations
+    attributes:
+      label: Test considerations
+      description: Describe how the feature should be validated.
+      placeholder: Which automated or manual checks should be added or updated?
+    validations:
+      required: true

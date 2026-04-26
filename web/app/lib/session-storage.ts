@@ -108,17 +108,17 @@ export class SessionStorageService {
   /**
    * Validate session structure
    */
-  private static isValidSession(session: any): session is WalletSession {
+  private static isValidSession(session: unknown): session is WalletSession {
     return (
       session &&
-      typeof session.address === 'string' &&
-      typeof session.publicKey === 'string' &&
-      typeof session.network === 'string' &&
-      typeof session.balance === 'number' &&
-      typeof session.isConnected === 'boolean' &&
-      typeof session.walletType === 'string' &&
-      session.connectedAt &&
-      session.lastActivity
+      typeof (session as any).address === 'string' &&
+      typeof (session as any).publicKey === 'string' &&
+      typeof (session as any).network === 'string' &&
+      typeof (session as any).balance === 'number' &&
+      typeof (session as any).isConnected === 'boolean' &&
+      typeof (session as any).walletType === 'string' &&
+      (session as any).connectedAt &&
+      (session as any).lastActivity
     );
   }
 
@@ -152,7 +152,7 @@ export class SessionStorageService {
       let available = 0;
 
       // Estimate used space
-      for (let key in localStorage) {
+      for (const key in localStorage) {
         if (localStorage.hasOwnProperty(key)) {
           used += localStorage[key].length + key.length;
         }
@@ -166,7 +166,7 @@ export class SessionStorageService {
           available += testValue.length;
           i++;
         }
-      } catch (e) {
+      } catch (_e) {
         // Storage full
       } finally {
         // Clean up test data
@@ -178,7 +178,7 @@ export class SessionStorageService {
       }
 
       return { used, available };
-    } catch (error) {
+    } catch (_error) {
       return { used: 0, available: 0 };
     }
   }

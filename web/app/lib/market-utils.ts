@@ -76,6 +76,7 @@ export function processMarketData(pool: PoolData, currentBlockHeight: number): P
     status,
     timeRemaining,
     createdAt: pool.createdAt,
+    settledAt: pool.settledAt,
     creator: pool.creator
   };
 }
@@ -225,7 +226,14 @@ export async function fetchCurrentBlockHeightLive(options?: {
       throw new Error(`Stacks API status failed: ${res.status}`);
     }
 
-    const data: any = await res.json();
+    interface StacksStatusResponse {
+      stacks_tip_height?: number | string;
+      stacks_block_height?: number | string;
+      block_height?: number | string;
+      height?: number | string;
+    }
+
+    const data = (await res.json()) as StacksStatusResponse;
     const rawHeight =
       data?.stacks_tip_height ??
       data?.stacks_block_height ??

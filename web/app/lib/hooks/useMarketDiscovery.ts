@@ -3,6 +3,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ProcessedMarket, MarketFilters, PaginationState } from '../market-types';
 import { readBlockHeightWarning, readMarketListCache, warmMarketListCache } from '../market-list-cache';
+import {
+  classifyConnectivityIssue,
+  getConnectivityMessage,
+  withTimeout,
+} from '../network-errors';
 
 interface UseMarketDiscoveryState {
   // Data
@@ -31,6 +36,24 @@ interface UseMarketDiscoveryState {
 
 const ITEMS_PER_PAGE = 12;
 
+/**
+ * useMarketDiscovery
+ *
+ * Central hook for the markets discovery page. Handles:
+ * - Instant first paint via localStorage cache
+ * - Background refresh with error recovery
+ * - Filtering, sorting and pagination with minimal re-renders
+ *
+ * ## Performance notes
+ * - All derived state (`filteredMarkets`, `paginatedMarkets`, `pagination`) is
+ *   computed with `useMemo` keyed on the narrowest possible dependency set.
+ * - Filter setter callbacks depend only on `setFilters`/`setCurrentPage` (both
+ *   stable), so they never cause child re-renders due to referential inequality.
+ * - Page reset on filter change is batched inside the setter functions rather
+ *   than via an additional `useEffect`, avoiding a superfluous render cycle.
+ * - `setPage` reads the current filtered count via a ref so its reference
+ *   stays stable even as the list length changes.
+ */
 export function useMarketDiscovery(): UseMarketDiscoveryState {
   // Instant first paint from cached market list.
   const [cacheSnapshot] = useState(() => readMarketListCache());
@@ -46,15 +69,16 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
   const [isLoading, setIsLoading] = useState<boolean>(() => !cacheSnapshot.isFresh);
   const [error, setError] = useState<string | null>(null);
   
-  // Filter state
-  const [filters, setFilters] = useState<MarketFilters>({
-    search: '',
-    status: 'all',
-    sortBy: 'newest'
-  });
-  
+  // Filter state – flattened so useMemo deps can be individual scalars
+  const [search, setSearchState] = useState('');
+  const [status, setStatusState] = useState<MarketFilters['status']>('all');
+  const [sortBy, setSortByState] = useState<MarketFilters['sortBy']>('newest');
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Keep a ref to the current filtered count so `setPage` stays stable
+  const filteredCountRef = useRef(0);
 
   // Fetch markets data
   const fetchMarkets = useCallback(async (options?: { forceLoading?: boolean }) => {
@@ -65,19 +89,26 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
       if (shouldShowLoading) setIsLoading(true);
       setError(null);
       
-      const processedMarkets = await warmMarketListCache();
+      const processedMarkets = await withTimeout(
+        warmMarketListCache(),
+        12000,
+        'Market loading timeout'
+      );
       
       setAllMarkets(processedMarkets);
       hasAnyMarketsRef.current = processedMarkets.length > 0;
       setBlockHeightWarning(readBlockHeightWarning());
     } catch (err) {
       console.error('Failed to fetch markets:', err);
+      const issue = classifyConnectivityIssue(err);
+      const message = getConnectivityMessage(issue, 'Loading markets');
 
       // Preserve cached markets (if any) on background refresh failures.
       if (hasAnyMarketsRef.current) {
         setError(null);
+        setBlockHeightWarning(message);
       } else {
-        setError('Failed to load markets. Please try again.');
+        setError(message);
       }
     } finally {
       setIsLoading(false);
@@ -91,62 +122,64 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
   }, [fetchMarkets]);
 
   // Filter and sort markets
+  // Deps are individual scalars — prevents spurious recalculation from a new
+  // `filters` object reference that carries the same values.
   const filteredMarkets = useMemo(() => {
-    let filtered = [...allMarkets];
+    let filtered = allMarkets;
 
     // Apply search filter
-    if (filters.search.trim()) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(market => 
+    if (search.trim()) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(market =>
         market.title.toLowerCase().includes(searchLower) ||
         market.description.toLowerCase().includes(searchLower)
       );
     }
 
     // Apply status filter
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(market => market.status === filters.status);
+    if (status !== 'all') {
+      filtered = filtered.filter(market => market.status === status);
     }
 
-    // Apply sorting
-    switch (filters.sortBy) {
+    // Apply sorting — always create a new array so we don't mutate state
+    const sorted = [...filtered];
+    switch (sortBy) {
       case 'volume':
-        filtered.sort((a, b) => b.totalVolume - a.totalVolume);
+        sorted.sort((a, b) => b.totalVolume - a.totalVolume);
         break;
       case 'newest':
-        filtered.sort((a, b) => b.createdAt - a.createdAt);
+        sorted.sort((a, b) => b.createdAt - a.createdAt);
         break;
       case 'ending-soon':
-        filtered.sort((a, b) => {
-          // Active markets first, sorted by time remaining
+        sorted.sort((a, b) => {
           if (a.status === 'active' && b.status !== 'active') return -1;
           if (b.status === 'active' && a.status !== 'active') return 1;
-          
           if (a.status === 'active' && b.status === 'active') {
             const aTime = a.timeRemaining ?? Infinity;
             const bTime = b.timeRemaining ?? Infinity;
             return aTime - bTime;
           }
-          
-          // For non-active markets, sort by creation time
           return b.createdAt - a.createdAt;
         });
         break;
     }
 
-    return filtered;
-  }, [allMarkets, filters]);
+    return sorted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allMarkets, search, status, sortBy]);
+
+  // Keep the ref in sync with the latest filtered count (no extra render)
+  filteredCountRef.current = filteredMarkets.length;
 
   // Calculate pagination
   const pagination = useMemo((): PaginationState => {
     const totalItems = filteredMarkets.length;
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    
     return {
       currentPage,
       itemsPerPage: ITEMS_PER_PAGE,
       totalItems,
-      totalPages
+      totalPages,
     };
   }, [filteredMarkets.length, currentPage]);
 
@@ -157,33 +190,40 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
     return filteredMarkets.slice(startIndex, endIndex);
   }, [filteredMarkets, currentPage]);
 
-  // Reset to first page when filters change
-  useEffect(() => {
+  // Stable filter/sort actions — reset page inline to avoid an extra render
+  // cycle caused by a separate useEffect watching filter values.
+  const setSearch = useCallback((value: string) => {
+    setSearchState(value);
     setCurrentPage(1);
-  }, [filters.search, filters.status, filters.sortBy]);
-
-  // Action handlers
-  const setSearch = useCallback((search: string) => {
-    setFilters(prev => ({ ...prev, search }));
   }, []);
 
-  const setStatusFilter = useCallback((status: MarketFilters['status']) => {
-    setFilters(prev => ({ ...prev, status }));
+  const setStatusFilter = useCallback((value: MarketFilters['status']) => {
+    setStatusState(value);
+    setCurrentPage(1);
   }, []);
 
-  const setSortBy = useCallback((sortBy: MarketFilters['sortBy']) => {
-    setFilters(prev => ({ ...prev, sortBy }));
+  const setSortBy = useCallback((value: MarketFilters['sortBy']) => {
+    setSortByState(value);
+    setCurrentPage(1);
   }, []);
 
+  // `setPage` reads filteredCountRef so its reference never changes
   const setPage = useCallback((page: number) => {
-    if (page >= 1 && page <= pagination.totalPages) {
+    const totalPages = Math.ceil(filteredCountRef.current / ITEMS_PER_PAGE);
+    if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
-  }, [pagination.totalPages]);
+  }, []);
 
   const retry = useCallback(() => {
     fetchMarkets({ forceLoading: true });
   }, [fetchMarkets]);
+
+  // Compose the filters object once so callers get a stable shape
+  const filters = useMemo<MarketFilters>(
+    () => ({ search, status, sortBy }),
+    [search, status, sortBy]
+  );
 
   return {
     // Data
@@ -205,6 +245,6 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
     setStatusFilter,
     setSortBy,
     setPage,
-    retry
+    retry,
   };
 }

@@ -2,27 +2,30 @@
 
 import Navbar from "../../components/Navbar";
 import BettingSection from "../../components/BettingSection";
-import ClaimWinningsButton from "../../components/ClaimWinningsButton";
-import { useStacks } from "../../components/StacksProvider";
+import ClaimWinningsButton from "../../../components/ClaimWinningsButton";
+import SettledPoolSummary from "../../components/SettledPoolSummary";
+import { useWallet } from "../../components/WalletAdapterProvider";
 import { useEffect, useState } from "react";
-import { getPool, Pool, getUserBets } from "../../lib/stacks-api";
+import { predinexReadApi } from "../../lib/adapters/predinex-read-api";
+import type { Pool } from "../../lib/adapters/types";
 import { TrendingUp, Users, Clock } from "lucide-react";
 import { use } from "react";
 import ShareButton from "../../../components/ShareButton";
+import { TruncatedAddress } from "../../../components/TruncatedAddress";
 
 export default function PoolDetails({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const poolId = parseInt(id);
 
-    const { userData } = useStacks();
-    const stxAddress = userData?.profile?.stxAddress?.mainnet || userData?.profile?.stxAddress?.testnet || userData?.identityAddress;
+    const { address: stxAddress } = useWallet();
 
     const [pool, setPool] = useState<Pool | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [userBet, setUserBet] = useState<{amountA: number; amountB: number} | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [userBet, setUserBet] = useState<{ amountA: number; amountB: number } | null>(null);
 
     useEffect(() => {
-        getPool(poolId).then(data => {
+        predinexReadApi.getPool(poolId).then(data => {
             setPool(data);
             setIsLoading(false);
         });
@@ -30,15 +33,53 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
 
     useEffect(() => {
         if (stxAddress && poolId) {
-            getUserBet(poolId, stxAddress).then(bet => {
+            predinexReadApi.getUserBet(poolId, stxAddress).then(bet => {
                 setUserBet(bet);
             }).catch(() => setUserBet(null));
         }
     }, [stxAddress, poolId]);
 
-    const userHasWinnings = pool?.settled && userBet && 
-        ((pool.winningOutcome === 0 && userBet.amountA > 0) || 
-         (pool.winningOutcome === 1 && userBet.amountB > 0));
+    const refreshPoolData = async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+
+        try {
+            const [newPool, newBet] = await Promise.all([
+                predinexReadApi.getPool(poolId),
+                stxAddress ? predinexReadApi.getUserBet(poolId, stxAddress) : Promise.resolve(null)
+            ]);
+
+            if (newPool) setPool(newPool);
+            if (newBet) setUserBet(newBet);
+        } catch (error) {
+            console.error("Failed to refresh pool data:", error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    const handleBetSuccess = (outcome: number, amountMicroSTX: number) => {
+        // Optimistic update
+        const amount = amountMicroSTX; // Since pool totals are in microSTX as well (verified in stacks-api.ts)
+        setPool(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                totalA: outcome === 0 ? prev.totalA + amount : prev.totalA,
+                totalB: outcome === 1 ? prev.totalB + amount : prev.totalB,
+            };
+        });
+
+        // Trigger real refresh after a small delay to allow on-chain propagation
+        // and handle potential backend indexing delays.
+        setTimeout(refreshPoolData, 3000);
+        // Also refresh immediately to catch any mempool updates if supported by the node
+        refreshPoolData();
+    };
+
+    const userHasWinnings = pool?.settled && userBet &&
+        ((pool.winningOutcome === 0 && userBet.amountA > 0) ||
+            (pool.winningOutcome === 1 && userBet.amountB > 0));
 
 
 
@@ -97,7 +138,9 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                         <div className="bg-muted/50 p-4 rounded-lg text-center">
                             <Users className="w-5 h-5 mx-auto mb-2 text-accent" />
                             <p className="text-sm text-muted-foreground">Creator</p>
-                            <p className="font-mono text-xs truncate">{pool.creator.slice(0, 8)}...</p>
+                            <p className="font-mono text-xs truncate">
+                                <TruncatedAddress address={pool.creator} />
+                            </p>
                         </div>
                         <div className="bg-muted/50 p-4 rounded-lg text-center">
                             <Clock className="w-5 h-5 mx-auto mb-2 text-yellow-500" />
@@ -125,17 +168,56 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                         </div>
                     </div>
 
-                    {/* Betting UI */}
+                    {/* User Bet Summary Card */}
+                    {userBet && (userBet.amountA > 0 || userBet.amountB > 0) && (
+                        <div className="mb-8 p-4 bg-primary/10 border border-primary/20 rounded-xl">
+                            <h3 className="text-lg font-semibold mb-3">Your Position</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className={`p-3 rounded-lg ${userBet.amountA > 0 ? 'bg-green-500/10 border border-green-500/20' : 'bg-muted/50'}`}>
+                                    <p className="text-sm text-muted-foreground">{pool.outcomeA}</p>
+                                    <p className="text-xl font-bold">{(userBet.amountA / 1_000_000).toFixed(2)} STX</p>
+                                </div>
+                                <div className={`p-3 rounded-lg ${userBet.amountB > 0 ? 'bg-red-500/10 border border-red-500/20' : 'bg-muted/50'}`}>
+                                    <p className="text-sm text-muted-foreground">{pool.outcomeB}</p>
+                                    <p className="text-xl font-bold">{(userBet.amountB / 1_000_000).toFixed(2)} STX</p>
+                                </div>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-primary/20 flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Total Staked</span>
+                                <span className="font-bold">{((userBet.amountA + userBet.amountB) / 1_000_000).toFixed(2)} STX</span>
+                            </div>
+                            {pool.settled && userHasWinnings && (
+                                <div className="mt-2 text-sm text-green-400">
+                                    Winner: {pool.winningOutcome === 0 ? pool.outcomeA : pool.outcomeB}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Betting UI / Settled Summary */}
                     {pool.settled ? (
                         <div className="mt-6">
-                            <ClaimWinningsButton 
-                                poolId={poolId} 
-                                isSettled={pool.settled} 
-                                userHasWinnings={userHasWinnings} 
+                            <SettledPoolSummary pool={pool} />
+                            <ClaimWinningsButton
+                                poolId={poolId}
+                                isSettled={pool.settled}
+                                userHasWinnings={!!userHasWinnings}
                             />
                         </div>
                     ) : (
-                        <BettingSection pool={pool} poolId={poolId} />
+                        <div className="relative">
+                            {isRefreshing && (
+                                <div className="absolute -top-6 right-0 flex items-center gap-2 text-xs text-primary animate-pulse">
+                                    <div className="w-2 h-2 bg-primary rounded-full" />
+                                    Reconciling on-chain data...
+                                </div>
+                            )}
+                            <BettingSection
+                                pool={pool}
+                                poolId={poolId}
+                                onBetSuccess={handleBetSuccess}
+                            />
+                        </div>
                     )}
                 </div>
             </div>

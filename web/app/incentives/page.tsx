@@ -3,14 +3,14 @@
 import Navbar from "../components/Navbar";
 import AuthGuard from "../components/AuthGuard";
 import IncentivesDisplay from "../components/IncentivesDisplay";
-import { useStacks } from "../components/StacksProvider";
+import { useWallet } from "../components/WalletAdapterProvider";
 import { useWalletConnect } from "../lib/hooks/useWalletConnect";
 
 export default function IncentivesPage() {
-  const { userData } = useStacks();
+  const { address } = useWallet();
   const { session } = useWalletConnect();
 
-  const userAddress = session?.address || userData?.profile?.stxAddress;
+  const userAddress = session?.address || address || undefined;
 
   return (
     <main className="min-h-screen bg-background text-foreground">

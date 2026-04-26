@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { StacksProvider } from "./components/StacksProvider";
+import { WalletAdapterProvider } from "./components/WalletAdapterProvider";
 import { ToastProvider } from "../providers/ToastProvider";
 import Footer from "./components/Footer";
 import MarketListPreloader from "./components/MarketListPreloader";
@@ -53,13 +53,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <StacksProvider>
+        <WalletAdapterProvider>
           <ToastProvider>
             <MarketListPreloader />
             {children}
             <Footer />
           </ToastProvider>
-        </StacksProvider>
+        </WalletAdapterProvider>
       </body>
     </html>
   );

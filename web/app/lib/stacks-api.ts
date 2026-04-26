@@ -147,13 +147,20 @@ export async function getUserBet(poolId: number, userAddress: string): Promise<U
             network,
         });
 
-        const value = cvToValue(result, true);
+        const value = cvToValue(result, true) as Record<string, unknown> | null;
         if (!value) return null;
 
+        const toNumber = (raw: unknown): number => {
+            if (typeof raw === 'number') return raw;
+            if (typeof raw === 'string') return Number(raw);
+            if (typeof raw === 'bigint') return Number(raw);
+            return Number.NaN;
+        };
+
         return {
-            amountA: Number((value['amount-a'] as any)?.value ?? value['amount-a']),
-            amountB: Number((value['amount-b'] as any)?.value ?? value['amount-b']),
-            totalBet: Number((value['total-bet'] as any)?.value ?? value['total-bet']),
+            amountA: toNumber((value['amount-a'] as { value?: unknown } | undefined)?.value ?? value['amount-a']),
+            amountB: toNumber((value['amount-b'] as { value?: unknown } | undefined)?.value ?? value['amount-b']),
+            totalBet: toNumber((value['total-bet'] as { value?: unknown } | undefined)?.value ?? value['total-bet']),
         };
     } catch (e) {
         console.error(`Failed to fetch user bet for pool ${poolId}`, e);
@@ -168,7 +175,7 @@ export interface ActivityEvent {
     poolId?: number;
     poolTitle?: string;
     amount?: number;
-    outcome?: string;
+    outcome?: number;
     winnerAmount?: number;
 }
 
@@ -185,8 +192,59 @@ export interface ActivityItem {
     event?: ActivityEvent;
 }
 
-function parseContractEvents(tx: any): ActivityEvent | undefined {
-    const events = tx.events || [];
+type StacksFunctionArg = {
+    name?: string;
+    repr?: string;
+};
+
+type StacksContractCall = {
+    contract_id?: string;
+    function_name?: string;
+    function_args?: StacksFunctionArg[];
+};
+
+type StacksSmartContractEvent = {
+    type?: string;
+    smart_contract_event?: {
+        event_name?: string;
+        event_data?: Record<string, unknown>;
+    };
+};
+
+type StacksTransaction = {
+    tx_id: string;
+    tx_status?: string;
+    burn_block_time?: number;
+    contract_call?: StacksContractCall;
+    events?: StacksSmartContractEvent[];
+};
+
+type StacksAddressTransactionsResponse = {
+    results?: StacksTransaction[];
+};
+
+function isStacksTransaction(value: unknown): value is StacksTransaction {
+    if (!value || typeof value !== 'object') return false;
+    const record = value as Record<string, unknown>;
+    return typeof record.tx_id === 'string';
+}
+
+function parseOptionalNumber(raw: unknown): number | undefined {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    if (typeof raw === 'string') {
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : undefined;
+    }
+    return undefined;
+}
+
+function parseOptionalString(raw: unknown): string | undefined {
+    if (typeof raw === 'string' && raw.length > 0) return raw;
+    return undefined;
+}
+
+function parseContractEvents(tx: StacksTransaction): ActivityEvent | undefined {
+    const events = tx.events ?? [];
     
     for (const event of events) {
         if (event.type === 'smart_contract_event') {
@@ -194,39 +252,39 @@ function parseContractEvents(tx: any): ActivityEvent | undefined {
             const eventName = eventData?.event_name;
             
             if (eventName === 'bet-placed') {
-                const parsed = eventData?.event_data || {};
+                const parsed = eventData?.event_data ?? {};
                 return {
                     type: 'bet',
-                    poolId: parsed.pool_id,
-                    amount: parsed.amount,
-                    outcome: parsed.outcome,
+                    poolId: parseOptionalNumber(parsed.pool_id),
+                    amount: parseOptionalNumber(parsed.amount),
+                    outcome: parseOptionalNumber(parsed.outcome),
                 };
             }
             
             if (eventName === 'pool-created') {
-                const parsed = eventData?.event_data || {};
+                const parsed = eventData?.event_data ?? {};
                 return {
                     type: 'pool-creation',
-                    poolId: parsed.pool_id,
-                    poolTitle: parsed.title,
+                    poolId: parseOptionalNumber(parsed.pool_id),
+                    poolTitle: parseOptionalString(parsed.title),
                 };
             }
             
             if (eventName === 'pool-settled') {
-                const parsed = eventData?.event_data || {};
+                const parsed = eventData?.event_data ?? {};
                 return {
                     type: 'settlement',
-                    poolId: parsed.pool_id,
-                    outcome: parsed.winning_outcome,
+                    poolId: parseOptionalNumber(parsed.pool_id),
+                    outcome: parseOptionalNumber(parsed.winning_outcome),
                 };
             }
             
             if (eventName === 'winnings-claimed') {
-                const parsed = eventData?.event_data || {};
+                const parsed = eventData?.event_data ?? {};
                 return {
                     type: 'claim',
-                    poolId: parsed.pool_id,
-                    winnerAmount: parsed.amount,
+                    poolId: parseOptionalNumber(parsed.pool_id),
+                    winnerAmount: parseOptionalNumber(parsed.amount),
                 };
             }
         }
@@ -235,16 +293,23 @@ function parseContractEvents(tx: any): ActivityEvent | undefined {
     return undefined;
 }
 
-function extractPoolInfo(args: any[]): { amount?: number; poolId?: number } {
+function parseUintRepr(repr: string): number | undefined {
+    // Expected: strings like "u1000000" from Clarity uints
+    const normalized = repr.startsWith('u') ? repr.slice(1) : repr;
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : undefined;
+}
+
+function extractPoolInfo(args: StacksFunctionArg[]): { amount?: number; poolId?: number } {
     let amount: number | undefined;
     let poolId: number | undefined;
 
     for (const arg of args) {
         if (arg.name === 'amount' && arg.repr) {
-            amount = Number(arg.repr.replace('u', ''));
+            amount = parseUintRepr(arg.repr);
         }
         if (arg.name === 'pool-id' && arg.repr) {
-            poolId = Number(arg.repr.replace('u', ''));
+            poolId = parseUintRepr(arg.repr);
         }
     }
     
@@ -304,13 +369,17 @@ export async function getUserActivity(
             return [];
         }
 
-        const data = await response.json();
-        const results: any[] = data.results || [];
+        const data: unknown = await response.json();
+        const dataRecord = (data && typeof data === 'object' ? (data as Record<string, unknown>) : {}) as Record<
+            string,
+            unknown
+        >;
+        const maybeResults = dataRecord['results'];
+        const results = Array.isArray(maybeResults) ? maybeResults.filter(isStacksTransaction) : [];
 
-        const predinexTxs = results.filter((tx: any) => {
+        const predinexTxs = results.filter((tx) => {
             const callInfo = tx.contract_call;
-            if (!callInfo) return false;
-            return callInfo.contract_id?.includes(contractAddress);
+            return typeof callInfo?.contract_id === 'string' && callInfo.contract_id.includes(contractAddress);
         });
 
         return predinexTxs.map((tx): ActivityItem => {
@@ -330,14 +399,14 @@ export async function getUserActivity(
             const event = parseContractEvents(tx);
 
             // Extract amount from function args if available
-            const args: any[] = callInfo?.function_args || [];
+            const args: StacksFunctionArg[] = callInfo?.function_args ?? [];
             const { amount, poolId } = extractPoolInfo(args);
 
             return {
                 txId: tx.tx_id,
                 type,
                 functionName: fnName,
-                timestamp: tx.burn_block_time || Math.floor(Date.now() / 1000),
+                timestamp: tx.burn_block_time ?? Math.floor(Date.now() / 1000),
                 status,
                 amount: event?.amount || event?.winnerAmount || amount,
                 poolId: event?.poolId || poolId,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface ToastProps {
     message: string;
@@ -13,7 +13,7 @@ interface ToastProps {
 /**
  * Toast - Ephemeral notification component
  * @param message The notification message
- * @param type The type of notification (success, error, info)
+ * @param type The type of notification (success, error, info, warning)
  * @param duration How long to show the toast in ms
  * @param onClose Callback when toast is closed
  */
@@ -38,12 +38,14 @@ export default function Toast({
         success: <CheckCircle className="w-5 h-5 text-green-500" />,
         error: <AlertCircle className="w-5 h-5 text-red-500" />,
         info: <Info className="w-5 h-5 text-blue-500" />,
+        warning: <AlertTriangle className="w-5 h-5 text-amber-500" />,
     };
 
     const bgClasses = {
         success: 'bg-green-500/10 border-green-500/20',
         error: 'bg-red-500/10 border-red-500/20',
         info: 'bg-blue-500/10 border-blue-500/20',
+        warning: 'bg-amber-500/10 border-amber-500/20',
     };
 
     return (

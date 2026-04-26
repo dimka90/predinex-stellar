@@ -1,5 +1,6 @@
 import { WALLETCONNECT_CONFIG } from './walletconnect-config';
 import { NETWORK_CONFIG as ANALYTICS_NETWORK_CONFIG } from './analytics/config';
+import { validateContractId } from './validators';
 
 export type SupportedNetwork = 'mainnet' | 'testnet';
 
@@ -21,10 +22,20 @@ export type StacksApiConfig = {
   rpcUrl: string;
 };
 
+export type SorobanConfig = {
+  /** Soroban RPC URL used for getEvents and other Soroban RPC calls. */
+  rpcUrl: string;
+  /** Stellar explorer base URL (for linking to transactions). */
+  explorerUrl: string;
+  /** Deployed Soroban contract ID (C... strkey). */
+  contractId: string;
+};
+
 export type RuntimeConfig = {
   network: SupportedNetwork;
   contract: ContractConfig;
   api: StacksApiConfig;
+  soroban: SorobanConfig;
 };
 
 function getRequiredEnv(name: string): string {
@@ -74,12 +85,26 @@ export function getRuntimeConfig(): RuntimeConfig {
     throw new Error(`Missing Stacks API URLs for network '${network}' in wallet configuration.`);
   }
 
+  const sorobanNet = WALLETCONNECT_CONFIG.soroban[network];
+  if (!sorobanNet?.rpcUrl || !sorobanNet?.explorerUrl) {
+    throw new Error(`Missing Soroban RPC URLs for network '${network}' in wallet configuration.`);
+  }
+
+  // Soroban contract ID — prefer explicit env var, fall back to analytics config
+  const sorobanContractId =
+    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SOROBAN_CONTRACT_ID) || '';
+
   const analyticsKey = network === 'mainnet' ? 'MAINNET' : 'TESTNET';
   const contractIdFromAnalytics = (ANALYTICS_NETWORK_CONFIG as any)?.[analyticsKey]?.CONTRACT_ADDRESS;
   if (!contractIdFromAnalytics || typeof contractIdFromAnalytics !== 'string') {
     throw new Error(
       `Missing contract id for network '${network}'. Expected it in analytics NETWORK_CONFIG[${analyticsKey}].CONTRACT_ADDRESS.`
     );
+  }
+
+  const contractValidation = validateContractId(contractIdFromAnalytics, network);
+  if (!contractValidation.valid) {
+    throw new Error(`Invalid contract configuration: ${contractValidation.error}`);
   }
 
   const contract = parseContractId(contractIdFromAnalytics);
@@ -91,6 +116,11 @@ export function getRuntimeConfig(): RuntimeConfig {
       coreApiUrl: walletNet.coreApiUrl,
       explorerUrl: walletNet.explorerUrl,
       rpcUrl: walletNet.rpcUrl,
+    },
+    soroban: {
+      rpcUrl: sorobanNet.rpcUrl,
+      explorerUrl: sorobanNet.explorerUrl,
+      contractId: sorobanContractId,
     },
   };
 

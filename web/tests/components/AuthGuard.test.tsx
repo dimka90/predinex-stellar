@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders } from '../helpers/renderWithProviders';
 import AuthGuard from '../../app/components/AuthGuard';
-import * as StacksProvider from '../../app/components/StacksProvider';
+import * as WalletAdapterProvider from '../../app/components/WalletAdapterProvider';
 
-// Mock the StacksProvider
-vi.mock('../../app/components/StacksProvider', () => ({
-  useStacks: vi.fn(),
+// Mock the WalletAdapterProvider hook
+vi.mock('../../app/components/WalletAdapterProvider', () => ({
+  useWallet: vi.fn(),
+  WalletAdapterProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 describe('AuthGuard', () => {
@@ -14,13 +16,16 @@ describe('AuthGuard', () => {
   });
 
   it('renders children when user is authenticated', () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: { profile: { stxAddress: { mainnet: 'ST123' } } },
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue({
+      chain: 'stacks',
+      isConnected: true,
+      isLoading: false,
+      address: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
     });
 
-    render(
+    renderWithProviders(
       <AuthGuard>
         <div>Protected Content</div>
       </AuthGuard>
@@ -30,13 +35,16 @@ describe('AuthGuard', () => {
   });
 
   it('renders fallback when user is not authenticated', () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: null,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue({
+      chain: 'stacks',
+      isConnected: false,
+      isLoading: false,
+      address: null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
     });
 
-    render(
+    renderWithProviders(
       <AuthGuard>
         <div>Protected Content</div>
       </AuthGuard>
@@ -48,13 +56,16 @@ describe('AuthGuard', () => {
   });
 
   it('renders custom fallback when provided', () => {
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: null,
-      authenticate: vi.fn(),
-      signOut: vi.fn(),
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue({
+      chain: 'stacks',
+      isConnected: false,
+      isLoading: false,
+      address: null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
     });
 
-    render(
+    renderWithProviders(
       <AuthGuard fallback={<div>Custom Fallback</div>}>
         <div>Protected Content</div>
       </AuthGuard>
@@ -64,23 +75,24 @@ describe('AuthGuard', () => {
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
   });
 
-  it('calls authenticate when connect wallet button is clicked', async () => {
-    const authenticate = vi.fn();
-    vi.mocked(StacksProvider.useStacks).mockReturnValue({
-      userData: null,
-      authenticate,
-      signOut: vi.fn(),
+  it('calls connect when connect wallet button is clicked', async () => {
+    const connect = vi.fn();
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue({
+      chain: 'stacks',
+      isConnected: false,
+      isLoading: false,
+      address: null,
+      connect,
+      disconnect: vi.fn(),
     });
 
     const userEvent = (await import('@testing-library/user-event')).default.setup();
 
-    render(<AuthGuard><div>Content</div></AuthGuard>);
+    renderWithProviders(<AuthGuard><div>Content</div></AuthGuard>);
 
     const button = screen.getByText('Connect Wallet');
     await userEvent.click(button);
 
-    expect(authenticate).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 });
-
-

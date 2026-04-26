@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useAppKitAccount } from '@reown/appkit/react';
+import { useWallet } from '../../components/WalletAdapterProvider';
 import { useMemo } from 'react';
 
 export interface WalletContextType {
@@ -17,7 +17,7 @@ export interface WalletContextType {
 }
 
 export function useWalletConnect(): WalletContextType {
-  const { address, isConnected } = useAppKitAccount();
+  const { address, isConnected } = useWallet();
   
   const session = useMemo(() => {
     if (isConnected && address) {

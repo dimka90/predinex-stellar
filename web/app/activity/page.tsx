@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import AuthGuard from '../components/AuthGuard';
 import ActivityFeed from '../components/ActivityFeed';
-import { useStacks } from '../components/StacksProvider';
+import { useWallet } from '../components/WalletAdapterProvider';
 import { useUserActivity } from '../hooks/useUserActivity';
 import { Activity, Target, Trophy, TrendingUp } from 'lucide-react';
 
@@ -18,8 +18,7 @@ const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
 ];
 
 export default function ActivityPage() {
-    const { userData } = useStacks();
-    const stxAddress = userData?.profile?.stxAddress?.mainnet || userData?.profile?.stxAddress?.testnet || userData?.identityAddress;
+    const { address: stxAddress } = useWallet();
     const { activities, isLoading, error, refresh } = useUserActivity(stxAddress, 50);
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
