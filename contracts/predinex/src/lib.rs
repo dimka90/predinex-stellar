@@ -153,6 +153,23 @@ pub struct BetEvent {
     pub total_bet: i128,
 }
 
+/// Event payload emitted by `claim_winnings`.
+///
+/// Fields
+/// ------
+/// - `amount`          – net payout received by the user
+/// - `fee_amount`      – the fee deducted from the pool
+/// - `winning_outcome` – the outcome that won (0 = A, 1 = B)
+/// - `total_pool_size` – total tokens in the pool across all outcomes
+#[derive(Clone)]
+#[contracttype]
+pub struct ClaimEvent {
+    pub amount: i128,
+    pub fee_amount: i128,
+    pub winning_outcome: u32,
+    pub total_pool_size: i128,
+}
+
 #[contract]
 pub struct PredinexContract;
 
@@ -710,7 +727,12 @@ impl PredinexContract {
             .publish((Symbol::new(&env, "fee_collected"), pool_id), fee);
         env.events().publish(
             (Symbol::new(&env, "claim_winnings"), pool_id, user),
-            winnings,
+            ClaimEvent {
+                amount: winnings,
+                fee_amount: fee,
+                winning_outcome,
+                total_pool_size: total_pool_balance,
+            },
         );
 
         winnings

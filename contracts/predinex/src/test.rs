@@ -2,7 +2,9 @@
 extern crate std;
 use super::*;
 use soroban_sdk::String;
-use soroban_sdk::{testutils::Address as _, testutils::Ledger, Address, Env};
+use soroban_sdk::{
+    testutils::Address as _, testutils::Events, testutils::Ledger, Address, Env, IntoVal,
+};
 use std::format;
 
 #[test]
@@ -2552,4 +2554,74 @@ fn l4_successful_claim_reconciles_treasury_and_balances() {
         expected_fee,
         "remaining contract balance must equal the unclaimed treasury fee"
     );
+}
+
+/// L5: Claim winnings emits a claim event with payout and fee context.
+#[test]
+fn l5_claim_winnings_emits_claim_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let token_admin_addr = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin_addr.clone());
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
+
+    let contract_id = env.register(PredinexContract, ());
+    let client = PredinexContractClient::new(&env, &contract_id);
+
+    let treasury_recipient = Address::generate(&env);
+    client.initialize(&token_id.address(), &treasury_recipient);
+
+    let creator = Address::generate(&env);
+    let user_a = Address::generate(&env);
+    let user_b = Address::generate(&env);
+
+    token_admin_client.mint(&user_a, &300);
+    token_admin_client.mint(&user_b, &200);
+
+    let pool_id = client.create_pool(
+        &creator,
+        &String::from_str(&env, "Event test"),
+        &String::from_str(&env, "Desc"),
+        &String::from_str(&env, "Yes"),
+        &String::from_str(&env, "No"),
+        &3600,
+    );
+
+    client.place_bet(&user_a, &pool_id, &0, &300);
+    client.place_bet(&user_b, &pool_id, &1, &200);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp = 3601;
+    });
+    client.settle_pool(&creator, &pool_id, &0); // A wins
+
+    let winnings = client.claim_winnings(&user_a, &pool_id);
+
+    // Retrieve events emitted
+    let events = env.events().all();
+
+    // The last event emitted in `claim_winnings` is the `claim_winnings` event itself
+    let last_event = events.last().expect("must emit an event");
+
+    // Verify topic
+    let topics = last_event.1;
+    let topic0: soroban_sdk::Symbol = soroban_sdk::FromVal::from_val(&env, &topics.get(0).unwrap());
+    let topic1: u32 = soroban_sdk::FromVal::from_val(&env, &topics.get(1).unwrap());
+    let topic2: Address = soroban_sdk::FromVal::from_val(&env, &topics.get(2).unwrap());
+
+    assert_eq!(topic0, soroban_sdk::Symbol::new(&env, "claim_winnings"));
+    assert_eq!(topic1, pool_id);
+    assert_eq!(topic2, user_a);
+
+    // Verify payload is ClaimEvent
+    let payload_val = last_event.2;
+    let claim_event: crate::ClaimEvent = soroban_sdk::FromVal::from_val(&env, &payload_val);
+
+    assert_eq!(claim_event.amount, winnings);
+    assert_eq!(claim_event.winning_outcome, 0);
+    assert_eq!(claim_event.total_pool_size, 500);
+
+    let expected_fee = (500i128 * 2) / 100;
+    assert_eq!(claim_event.fee_amount, expected_fee);
 }
