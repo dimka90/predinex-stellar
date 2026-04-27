@@ -6,6 +6,7 @@ import { LogOut, Menu, X, Wallet } from "lucide-react";
 import { useWallet } from './WalletAdapterProvider';
 import { ICON_CLASS } from "../lib/constants";
 import { WalletAddressCopyButton } from "../../components/WalletAddressCopyButton";
+import NetworkMismatchWarning from './NetworkMismatchWarning';
 
 export default function Navbar() {
     const { isConnected, address, connect, disconnect } = useWallet();
@@ -59,6 +60,7 @@ export default function Navbar() {
                                 </button>
                             </div>
                         ) : (
+                            <>
                             <button
                                 onClick={connect}
                                 className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-full border border-primary/20 transition-colors font-medium text-sm"
@@ -74,9 +76,11 @@ export default function Navbar() {
                             >
                                 {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                             </button>
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
+            </div>
 
                 {/* Mobile Menu Backdrop */}
                 {isMenuOpen && (
