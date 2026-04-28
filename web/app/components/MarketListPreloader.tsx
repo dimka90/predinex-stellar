@@ -22,10 +22,10 @@ export default function MarketListPreloader() {
     };
 
     // Use idle time so we don't block the initial page render/hydration.
-    if ('requestIdleCallback' in window) {
+    if ('requestIdleCallback' in (window as any)) {
       (window as any).requestIdleCallback(() => void warmCache(), { timeout: 2000 });
     } else {
-      window.setTimeout(() => void warmCache(), 1000);
+      (window as any).setTimeout(() => void warmCache(), 1000);
     }
   }, []);
 

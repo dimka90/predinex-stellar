@@ -7,8 +7,8 @@ import { useUserActivity } from '../hooks/useUserActivity';
 import { useActiveBets } from '../lib/hooks/useActiveBets';
 import { useWallet } from '../components/WalletAdapterProvider';
 import RouteErrorBoundary from '../../components/RouteErrorBoundary';
-import EmptyState from '../../components/EmptyState';
-import DisconnectedState from '../../components/DisconnectedState';
+import { EmptyState } from '../../components/EmptyState';
+import { DisconnectedState } from '../../components/DisconnectedState';
 
 function StatsSkeleton() {
   return (
@@ -58,7 +58,7 @@ function DashboardContent() {
     isLoading: activityLoading,
     error: activityError,
     refresh: refreshActivity,
-  } = useUserActivity(stxAddress, 5);
+  } = useUserActivity(stxAddress || undefined, 5);
   const { activeBets, isLoading: betsLoading, refresh: refreshBets } = useActiveBets(stxAddress);
 
   return (

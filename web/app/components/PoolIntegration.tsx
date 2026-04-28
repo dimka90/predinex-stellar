@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useWallet } from './WalletAdapterProvider';
-import { useWalletConnect } from '../lib/hooks/useWalletConnect';
 import { Loader2, AlertCircle, CheckCircle, TrendingUp, Users } from 'lucide-react';
 import { formatDisplayAddress } from '../lib/address-display';
 import { mockPools, type Pool } from '../lib/fixtures/poolIntegration';
@@ -15,10 +14,7 @@ interface PoolStats {
 }
 
 export default function PoolIntegration() {
-  const { isConnected } = useWallet();
-  const { session } = useWalletConnect();
-  const { isConnected } = useAppKitAccount();
-  const { isMismatch, expectedNetworkName, switchNetwork } = useNetworkMismatch();
+  const { isConnected, connect } = useWallet();
   const [pools, setPools] = useState<Pool[]>([]);
   const [stats, setStats] = useState<PoolStats>({
     totalPools: 0,
@@ -72,8 +68,8 @@ export default function PoolIntegration() {
     };
   };
 
-  const formatSTX = (microSTX: number) => {
-    return (microSTX / 1_000_000).toFixed(2);
+  const formatXLM = (stroops: number) => {
+    return (stroops / 10_000_000).toFixed(2);
   };
 
   return (
@@ -100,7 +96,7 @@ export default function PoolIntegration() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total Volume</p>
-              <p className="text-3xl font-bold">{formatSTX(stats.totalVolume)} STX</p>
+              <p className="text-3xl font-bold">{formatXLM(stats.totalVolume)} XLM</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-500 opacity-50" />
           </div>
@@ -176,12 +172,12 @@ export default function PoolIntegration() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/20">
                       <p className="text-sm text-muted-foreground mb-2">{pool.outcomeA}</p>
-                      <p className="text-2xl font-bold text-green-400">{formatSTX(pool.totalA)} STX</p>
+                      <p className="text-2xl font-bold text-green-400">{formatXLM(pool.totalA)} XLM</p>
                       <p className="text-xs text-muted-foreground mt-1">{odds.a}% of pool</p>
                     </div>
                     <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/20">
                       <p className="text-sm text-muted-foreground mb-2">{pool.outcomeB}</p>
-                      <p className="text-2xl font-bold text-red-400">{formatSTX(pool.totalB)} STX</p>
+                      <p className="text-2xl font-bold text-red-400">{formatXLM(pool.totalB)} XLM</p>
                       <p className="text-xs text-muted-foreground mt-1">{odds.b}% of pool</p>
                     </div>
                   </div>
@@ -189,23 +185,18 @@ export default function PoolIntegration() {
                   {/* Pool Info */}
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Creator: {formatDisplayAddress(pool.creator)}</span>
-                    <span>Expires in {pool.expiryBlock} blocks</span>
+                    <span>Expires in {pool.expiryBlock} seconds</span>
                   </div>
 
                   {/* Action Button */}
-                  {!pool.settled && (isConnected || userData) && (
+                  {!pool.settled && (
                     <div className="space-y-2">
                       <button 
-                        disabled={isMismatch}
-                        className="w-full py-2 bg-primary hover:bg-violet-600 text-white font-bold rounded-lg transition-all disabled:opacity-50"
+                        onClick={isConnected ? () => {} : connect}
+                        className="w-full py-2 bg-primary hover:bg-violet-600 text-white font-bold rounded-lg transition-all"
                       >
-                        Place Bet
+                        {isConnected ? 'Place Bet' : 'Connect Wallet'}
                       </button>
-                      {isMismatch && (
-                        <p className="text-xs text-red-500 font-medium text-center">
-                          Please switch to {expectedNetworkName} to interact.
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>
