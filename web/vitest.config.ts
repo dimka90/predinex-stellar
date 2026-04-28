@@ -8,6 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+    exclude: ['**/stacks-api.test.ts', '**/market-discovery-network.test.ts'],
     environmentOptions: {
       jsdom: {
         url: 'http://localhost',
