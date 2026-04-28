@@ -12,8 +12,8 @@ interface UseActiveBetsReturn {
 }
 
 /**
- * Fetches the current user's active (open) on-chain positions.
- * Returns only bets with status === 'active'.
+ * Fetches the current user's positions used by the dashboard "Active Bets"
+ * card, including settled claimable winners.
  */
 export function useActiveBets(userAddress: string | null | undefined): UseActiveBetsReturn {
   const [activeBets, setActiveBets] = useState<UserBet[]>([]);
@@ -31,7 +31,7 @@ export function useActiveBets(userAddress: string | null | undefined): UseActive
 
     try {
       const bets = await getUserBets(userAddress);
-      setActiveBets(bets.filter((b) => b.status === 'active'));
+      setActiveBets(bets);
     } catch (e) {
       setError('Failed to load active positions. Please try again.');
       console.error('useActiveBets error:', e);

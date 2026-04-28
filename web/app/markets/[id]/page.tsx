@@ -202,6 +202,8 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                                 poolId={poolId}
                                 isSettled={pool.settled}
                                 userHasWinnings={!!userHasWinnings}
+                                userAddress={stxAddress}
+                                onClaimSuccess={refreshPoolData}
                             />
                         </div>
                     ) : (
