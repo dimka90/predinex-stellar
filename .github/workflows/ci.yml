@@ -35,6 +35,52 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Bundle size budget check
+        if: github.event_name == 'pull_request'
+        run: |
+          # Budget definitions (KB). Update intentionally with a comment explaining the reason.
+          BUDGET_TOTAL_KB=500
+          BUDGET_JS_KB=350
+          BUDGET_CSS_KB=80
+
+          FAILED=0
+
+          echo "### Bundle Size Budget Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Asset type | Size | Budget | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------------|------|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -d ".next/static" ]; then
+            TOTAL_SIZE=$(du -sk .next/static | cut -f1)
+            JS_SIZE=$(find .next/static/chunks -name "*.js" 2>/dev/null -exec stat -c%s {} \; | awk '{s+=$1} END {printf "%d", s/1024}')
+            CSS_SIZE=$(find .next/static/css -name "*.css" 2>/dev/null -exec stat -c%s {} \; | awk '{s+=$1} END {printf "%d", s/1024}')
+          else
+            TOTAL_SIZE=0; JS_SIZE=0; CSS_SIZE=0
+          fi
+
+          check_budget() {
+            local name="$1" size="$2" budget="$3"
+            if [ "$size" -gt "$budget" ]; then
+              printf "| %s | %sKB | %sKB | OVER BUDGET |\n" "$name" "$size" "$budget" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::$name bundle (${size}KB) exceeds budget of ${budget}KB."
+              FAILED=1
+            else
+              printf "| %s | %sKB | %sKB | OK |\n" "$name" "$size" "$budget" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          }
+
+          check_budget "Total static" "$TOTAL_SIZE" "$BUDGET_TOTAL_KB"
+          check_budget "JavaScript"   "$JS_SIZE"    "$BUDGET_JS_KB"
+          check_budget "CSS"          "$CSS_SIZE"   "$BUDGET_CSS_KB"
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "Bundle size budget exceeded. To update a budget intentionally, edit"
+            echo "the BUDGET_* variables in .github/workflows/ci.yml with a comment"
+            echo "explaining why the increase is justified."
+            exit 1
+          fi
+
   contract-checks:
     name: Contract Checks
     runs-on: ubuntu-latest
