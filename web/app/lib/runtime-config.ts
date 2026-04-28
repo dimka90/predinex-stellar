@@ -1,6 +1,6 @@
 import { WALLETCONNECT_CONFIG } from './walletconnect-config';
 import { NETWORK_CONFIG as ANALYTICS_NETWORK_CONFIG } from './analytics/config';
-import { validateContractId } from './validators';
+import { validateStellarContractAddress } from './validators';
 
 export type SupportedNetwork = 'mainnet' | 'testnet';
 
@@ -53,16 +53,12 @@ function parseNetwork(raw: string): SupportedNetwork {
   throw new Error(`Invalid config NEXT_PUBLIC_NETWORK='${raw}'. Expected 'mainnet' or 'testnet'.`);
 }
 
-function parseContractId(contractId: string): { address: string; name: string; id: string } {
-  const id = contractId.trim();
-  const lastDot = id.lastIndexOf('.');
-  if (lastDot <= 0 || lastDot >= id.length - 1) {
-    throw new Error(
-      `Invalid contract id '${contractId}'. Expected '<address>.<contractName>' format.`
-    );
-  }
-  const address = id.slice(0, lastDot);
-  const name = id.slice(lastDot + 1);
+function parseContractId(contractAddress: string): { address: string; name: string; id: string } {
+  // For Stellar, we use the contract address directly as the ID
+  // Stellar contracts don't have separate names like Stacks contracts
+  const address = contractAddress.trim();
+  const name = 'contract'; // Default name for Stellar contracts
+  const id = address;
   return { address, name, id };
 }
 
@@ -102,7 +98,7 @@ export function getRuntimeConfig(): RuntimeConfig {
     );
   }
 
-  const contractValidation = validateContractId(contractIdFromAnalytics, network);
+  const contractValidation = validateStellarContractAddress(contractIdFromAnalytics);
   if (!contractValidation.valid) {
     throw new Error(`Invalid contract configuration: ${contractValidation.error}`);
   }

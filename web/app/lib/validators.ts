@@ -97,79 +97,42 @@ export function validateBetAmount(amount: number): { valid: boolean; error?: str
 }
 
 /**
- * Validate Stacks address format
- * @param address Stacks address
+ * Validate Stellar address format
+ * @param address Stellar address
  * @returns Validation result
  */
-export function validateStacksAddress(address: string): { valid: boolean; error?: string } {
+export function validateStellarAddress(address: string): { valid: boolean; error?: string } {
   if (!address) {
     return { valid: false, error: 'Address is required' };
   }
-  // Stacks addresses start with SP or SM
-  if (!address.match(/^(SP|SM)[A-Z0-9]{38}$/)) {
-    return { valid: false, error: 'Invalid Stacks address format' };
+  // Stellar addresses start with G (public keys) or C (contracts), 56 characters total
+  if (!address.match(/^[GC][A-Z0-9]{55}$/)) {
+    return { valid: false, error: 'Invalid Stellar address format' };
   }
   return { valid: true };
 }
 
-// Mainnet addresses begin with SP or SM; testnet addresses begin with ST or SN.
-const NETWORK_ADDRESS_PREFIXES: Record<'mainnet' | 'testnet', string[]> = {
-  mainnet: ['SP', 'SM'],
-  testnet: ['ST', 'SN'],
-};
-
 /**
- * Validate that a contract identifier (`<address>.<name>`) is well-formed and
- * that its address prefix matches the expected network.
+ * Validate that a Stellar contract address is well-formed.
+ * Stellar contracts use strkey format starting with 'C' and are 56 characters total.
  *
- * @param contractId  Full contract identifier, e.g. `SP2ABC...XYZ.my-contract`
- * @param network     Target network (`'mainnet'` or `'testnet'`)
+ * @param contractAddress  Stellar contract address, e.g. `CA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUWDA`
  * @returns Validation result with an actionable error message on failure
  */
-export function validateContractId(
-  contractId: string,
-  network: 'mainnet' | 'testnet'
+export function validateStellarContractAddress(
+  contractAddress: string
 ): { valid: boolean; error?: string } {
-  if (!contractId || contractId.trim().length === 0) {
-    return { valid: false, error: 'Contract identifier is required' };
+  if (!contractAddress || contractAddress.trim().length === 0) {
+    return { valid: false, error: 'Contract address is required' };
   }
 
-  const id = contractId.trim();
-  const lastDot = id.lastIndexOf('.');
-  if (lastDot <= 0 || lastDot >= id.length - 1) {
+  const address = contractAddress.trim();
+
+  // Validate Stellar contract address format (C prefix, 56 chars total)
+  if (!/^C[A-Z0-9]{55}$/.test(address)) {
     return {
       valid: false,
-      error: `Invalid contract identifier '${id}'. Expected '<address>.<contractName>' format.`,
-    };
-  }
-
-  const address = id.slice(0, lastDot);
-  const name = id.slice(lastDot + 1);
-
-  // Validate address format (SP/SM for mainnet, ST/SN for testnet, 40–41 chars total)
-  if (!/^(SP|SM|ST|SN)[A-Z0-9]{38,39}$/.test(address)) {
-    return {
-      valid: false,
-      error: `Invalid contract address '${address}' in identifier '${id}'. Stacks addresses must be 40–41 characters starting with SP, SM (mainnet) or ST, SN (testnet).`,
-    };
-  }
-
-  // Validate network pairing
-  const expectedPrefixes = NETWORK_ADDRESS_PREFIXES[network];
-  const hasCorrectPrefix = expectedPrefixes.some((prefix) => address.startsWith(prefix));
-  if (!hasCorrectPrefix) {
-    const wrongNetwork = network === 'mainnet' ? 'testnet' : 'mainnet';
-    return {
-      valid: false,
-      error: `Contract address '${address}' looks like a ${wrongNetwork} address (prefix '${address.slice(0, 2)}') but NEXT_PUBLIC_NETWORK is set to '${network}'. Update NEXT_PUBLIC_NETWORK or use a ${network} contract address (prefix: ${expectedPrefixes.join(' or ')}).`,
-    };
-  }
-
-  // Validate contract name: lowercase letters, digits, hyphens only
-  if (!/^[a-z][a-z0-9-]*$/.test(name)) {
-    return {
-      valid: false,
-      error: `Invalid contract name '${name}' in identifier '${id}'. Contract names must start with a lowercase letter and contain only lowercase letters, digits, and hyphens.`,
+      error: `Invalid Stellar contract address '${address}'. Stellar contract addresses must be 56 characters starting with 'C'.`,
     };
   }
 

@@ -145,12 +145,12 @@ export function formatAddress(
 }
 
 /**
- * Format a Stacks address for standard wallet display.
+ * Format a Stellar address for standard wallet display.
  * Uses the canonical 6...4 truncation pattern.
- * @param address The full Stacks address
+ * @param address The full Stellar address
  * @returns Formatted address string
  */
-export function formatStacksAddress(address: string): string {
+export function formatStellarAddress(address: string): string {
   return formatAddress(address, { startChars: 6, endChars: 4 });
 }
 

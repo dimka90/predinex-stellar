@@ -13,7 +13,7 @@ import {
   formatPercentage,
   formatRatioAsPercentage,
   formatAddress,
-  formatStacksAddress,
+  formatStellarAddress,
   formatDuration,
   formatTimeRemaining,
   formatTimestamp,
@@ -171,10 +171,10 @@ describe('Address Formatting', () => {
     });
   });
 
-  describe('formatStacksAddress', () => {
+  describe('formatStellarAddress', () => {
     it('uses canonical 6...4 truncation', () => {
-      expect(formatStacksAddress('SP2WWKKF25SED3K5P6ETY7MDDNBQH50GPSP8EJM8N'))
-        .toBe('SP2WWK...JM8N');
+      expect(formatStellarAddress('GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ'))
+        .toBe('GA7QYN...VSGZ');
     });
   });
 });

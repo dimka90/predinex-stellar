@@ -245,7 +245,7 @@ export class TransactionService {
       errors.push('Function arguments must be an array');
     }
 
-    if (payload.contractAddress && !this.isValidStacksAddress(payload.contractAddress)) {
+    if (payload.contractAddress && !this.isValidStellarAddress(payload.contractAddress)) {
       errors.push('Invalid contract address format');
     }
 
@@ -302,9 +302,10 @@ export class TransactionService {
     return 'SP1EXAMPLE';
   }
 
-  private isValidStacksAddress(address: string): boolean {
-    const stacksAddressRegex = /^S[PT][0-9A-HJKMNP-TV-Z]{39}$/;
-    return stacksAddressRegex.test(address);
+  private isValidStellarAddress(address: string): boolean {
+    // Stellar addresses start with G (public keys) or C (contracts), 56 characters total
+    const stellarAddressRegex = /^[GC][A-Z0-9]{55}$/;
+    return stellarAddressRegex.test(address);
   }
 }// Plan: Integrate with Hiro Explorer API
 // Note: Consider implementing caching for frequently accessed transaction statuses
