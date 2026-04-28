@@ -5,6 +5,7 @@ import { STACKS_MAINNET, STACKS_TESTNET, type StacksNetwork } from "@stacks/netw
 import { UserBet, BetHistory, DashboardData } from "./dashboard-types";
 import { PoolData } from "./market-types";
 import { fetchAllPools, getEnhancedPool } from "./enhanced-stacks-api";
+import { predinexContract } from "./adapters/predinex-contract";
 import { 
   calculatePortfolio, 
   calculatePotentialWinnings, 
@@ -233,11 +234,17 @@ export async function getClaimableWinnings(userAddress: string): Promise<UserBet
  */
 export async function claimWinnings(poolId: number): Promise<{ success: boolean; txId?: string; error?: string }> {
   try {
-    // This would integrate with the wallet to execute the claim transaction
-    // For now, return a mock success response
+    const txId = await new Promise<string>((resolve, reject) => {
+      void predinexContract.claimWinnings({
+        poolId,
+        onFinish: (data) => resolve(data.txId),
+        onCancel: () => reject(new Error('Transaction cancelled')),
+      }).catch(reject);
+    });
+
     return {
       success: true,
-      txId: `mock-tx-${poolId}-${Date.now()}`
+      txId
     };
   } catch (error) {
     return {

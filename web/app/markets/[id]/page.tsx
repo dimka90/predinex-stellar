@@ -5,10 +5,10 @@ import BettingSection from "../../components/BettingSection";
 import ClaimWinningsButton from "../../../components/ClaimWinningsButton";
 import SettledPoolSummary from "../../components/SettledPoolSummary";
 import { useWallet } from "../../components/WalletAdapterProvider";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { predinexReadApi } from "../../lib/adapters/predinex-read-api";
 import type { Pool } from "../../lib/adapters/types";
-import { TrendingUp, Users, Clock } from "lucide-react";
+import { TrendingUp, Users, Clock, RefreshCw, AlertCircle } from "lucide-react";
 import { use } from "react";
 import ShareButton from "../../../components/ShareButton";
 import { TruncatedAddress } from "../../../components/TruncatedAddress";
@@ -22,13 +22,24 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
     const [pool, setPool] = useState<Pool | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [userBet, setUserBet] = useState<{ amountA: number; amountB: number } | null>(null);
 
     useEffect(() => {
-        predinexReadApi.getPool(poolId).then(data => {
-            setPool(data);
-            setIsLoading(false);
-        });
+        const loadPool = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const data = await predinexReadApi.getPool(poolId);
+                setPool(data);
+            } catch (e) {
+                setError(e instanceof Error ? e.message : 'Failed to load pool');
+                console.error(`Failed to load pool ${poolId}:`, e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadPool();
     }, [poolId]);
 
     useEffect(() => {
@@ -39,9 +50,10 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
         }
     }, [stxAddress, poolId]);
 
-    const refreshPoolData = async () => {
+    const refreshPoolData = useCallback(async () => {
         if (isRefreshing) return;
         setIsRefreshing(true);
+        setError(null);
 
         try {
             const [newPool, newBet] = await Promise.all([
@@ -51,12 +63,17 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
 
             if (newPool) setPool(newPool);
             if (newBet) setUserBet(newBet);
-        } catch (error) {
-            console.error("Failed to refresh pool data:", error);
+            // Clear error if refresh succeeds
+            setError(null);
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to refresh pool data';
+            console.error("Failed to refresh pool data:", err);
+            // Don't overwrite existing pool data on refresh error
+            setError(msg);
         } finally {
             setIsRefreshing(false);
         }
-    };
+    }, [poolId, stxAddress, isRefreshing]);
 
     const handleBetSuccess = (outcome: number, amountMicroSTX: number) => {
         // Optimistic update
@@ -83,20 +100,59 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
 
 
 
+    // Loading state
     if (isLoading) {
         return (
             <main className="min-h-screen bg-background text-foreground">
                 <Navbar />
-                <div className="pt-32 text-center">Loading pool...</div>
+                <div className="pt-32 flex flex-col items-center justify-center min-h-[50vh]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+                    <p className="text-muted-foreground">Loading pool from Soroban...</p>
+                </div>
             </main>
         );
     }
 
+    // Error state
+    if (error && !pool) {
+        return (
+            <main className="min-h-screen bg-background text-foreground">
+                <Navbar />
+                <div className="pt-32 flex flex-col items-center justify-center min-h-[50vh] px-4">
+                    <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                    <h2 className="text-xl font-semibold text-red-500 mb-2">Failed to Load Pool</h2>
+                    <p className="text-muted-foreground text-center max-w-md mb-6">{error}</p>
+                    <button
+                        onClick={refreshPoolData}
+                        disabled={isRefreshing}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        {isRefreshing ? 'Retrying...' : 'Try Again'}
+                    </button>
+                </div>
+            </main>
+        );
+    }
+
+    // Missing pool state
     if (!pool) {
         return (
             <main className="min-h-screen bg-background text-foreground">
                 <Navbar />
-                <div className="pt-32 text-center text-red-500">Pool not found.</div>
+                <div className="pt-32 flex flex-col items-center justify-center min-h-[50vh] px-4">
+                    <AlertCircle className="w-12 h-12 text-yellow-500 mb-4" />
+                    <h2 className="text-xl font-semibold mb-2">Pool Not Found</h2>
+                    <p className="text-muted-foreground text-center max-w-md mb-6">
+                        Pool #{poolId} does not exist on the Soroban contract. It may have been removed or the ID may be incorrect.
+                    </p>
+                    <a
+                        href="/markets"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+                    >
+                        Back to Markets
+                    </a>
+                </div>
             </main>
         );
     }
@@ -202,6 +258,8 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                                 poolId={poolId}
                                 isSettled={pool.settled}
                                 userHasWinnings={!!userHasWinnings}
+                                userAddress={stxAddress}
+                                onClaimSuccess={refreshPoolData}
                             />
                         </div>
                     ) : (

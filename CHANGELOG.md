@@ -18,7 +18,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ### 📖 Docs
 <!-- README, RELEASE, architectural docs, inline documentation -->
 - Added comprehensive preview deployment documentation (`docs/preview-deployments.md`)
-- Added quick start guide for preview deployment setup (`docs/PREVIEW_SETUP_QUICKSTART.md`)
+- Added quick start guide for preview deployment setup in `docs/preview-deployments.md`
 - Updated README with preview deployment information
 
 ### ⚙️ Ops & CI

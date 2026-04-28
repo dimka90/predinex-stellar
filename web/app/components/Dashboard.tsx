@@ -11,6 +11,7 @@ import { DashboardHeader } from './user-dashboard/DashboardHeader';
 import { DashboardStatsSections } from './user-dashboard/DashboardStatsSections';
 import { DashboardTabBar } from './user-dashboard/DashboardTabBar';
 import { DashboardOverviewPanel } from './user-dashboard/DashboardBetPanels';
+import StaleDataIndicator from './StaleDataIndicator';
 
 function PanelSkeleton() {
   return <div className="h-40 bg-card/20 animate-pulse rounded-xl border border-border" />;
@@ -53,14 +54,24 @@ export default function Dashboard() {
       {activeTab === 'history' && <DashboardHistoryPanel bets={bets} isLoading={isLoading} />}
       {activeTab === 'incentives' && <IncentivesDisplay betterId={address || session?.address} />}
 
-      <button
-        type="button"
-        onClick={() => void fetchUserData()}
-        disabled={isLoading}
-        className="w-full py-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl transition-all disabled:opacity-50"
-      >
-        {isLoading ? 'Refreshing...' : 'Refresh Data'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void fetchUserData()}
+          disabled={isLoading}
+          className="flex-1 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl transition-all disabled:opacity-50"
+        >
+          {isLoading ? 'Refreshing...' : 'Refresh Data'}
+        </button>
+      </div>
+
+      <div className="flex justify-center">
+        <StaleDataIndicator
+          lastFetchedAt={stats.lastUpdated}
+          isRefreshing={isLoading}
+          onRefresh={() => void fetchUserData()}
+        />
+      </div>
     </div>
   );
 }

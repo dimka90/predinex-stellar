@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { ProcessedMarket, MarketFilters, PaginationState } from '../market-types';
 import { readBlockHeightWarning, readMarketListCache, warmMarketListCache } from '../market-list-cache';
 import {
@@ -8,6 +8,7 @@ import {
   getConnectivityMessage,
   withTimeout,
 } from '../network-errors';
+import { useVisibilityAwarePolling } from './useVisibilityAwarePolling';
 
 interface UseMarketDiscoveryState {
   // Data
@@ -35,6 +36,7 @@ interface UseMarketDiscoveryState {
 }
 
 const ITEMS_PER_PAGE = 12;
+const REFRESH_INTERVAL_MS = 60_000;
 
 /**
  * useMarketDiscovery
@@ -116,10 +118,7 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
     }
   }, []);
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchMarkets();
-  }, [fetchMarkets]);
+  useVisibilityAwarePolling(fetchMarkets, REFRESH_INTERVAL_MS);
 
   // Filter and sort markets
   // Deps are individual scalars — prevents spurious recalculation from a new
@@ -165,7 +164,6 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
     }
 
     return sorted;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMarkets, search, status, sortBy]);
 
   // Keep the ref in sync with the latest filtered count (no extra render)

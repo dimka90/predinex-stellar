@@ -2769,165 +2769,7 @@ fn l5_claim_winnings_emits_claim_event() {
 // Issue #187: Metadata validation tests
 // ============================================================================
 
-const MAX_LEN: u32 = 50; // Example max length for metadata fields
 
-#[test]
-fn test_metadata_min_length() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let contract_id = env.register(PredinexContract, ());
-    let client = PredinexContractClient::new(&env, &contract_id);
-
-    let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
-    client.initialize(&token_id.address(), &token_admin);
-
-    let creator = Address::generate(&env);
-    // Test minimum length (1 character)
-    let name = String::from_str(&env, "a");
-    let description = String::from_str(&env, "Valid description");
-    let outcome_a = String::from_str(&env, "Yes");
-    let outcome_b = String::from_str(&env, "No");
-    let duration = 3600;
-
-    // Assuming create_pool validates title length - adjust based on actual validation
-    let result = client.create_pool(
-        &creator,
-        &name,
-        &description,
-        &outcome_a,
-        &outcome_b,
-        &duration,
-    );
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_metadata_max_length() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let contract_id = env.register(PredinexContract, ());
-    let client = PredinexContractClient::new(&env, &contract_id);
-
-    let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
-    client.initialize(&token_id.address(), &token_admin);
-
-    let creator = Address::generate(&env);
-    // Test maximum length
-    let name = "a".repeat(MAX_LEN as usize);
-    let name_str = String::from_str(&env, &name);
-    let description = String::from_str(&env, "Valid description");
-    let outcome_a = String::from_str(&env, "Yes");
-    let outcome_b = String::from_str(&env, "No");
-    let duration = 3600;
-
-    let result = client.create_pool(
-        &creator,
-        &name_str,
-        &description,
-        &outcome_a,
-        &outcome_b,
-        &duration,
-    );
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_metadata_overflow() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let contract_id = env.register(PredinexContract, ());
-    let client = PredinexContractClient::new(&env, &contract_id);
-
-    let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
-    client.initialize(&token_id.address(), &token_admin);
-
-    let creator = Address::generate(&env);
-    // Test overflow (max length + 1)
-    let name = "a".repeat((MAX_LEN + 1) as usize);
-    let name_str = String::from_str(&env, &name);
-    let description = String::from_str(&env, "Valid description");
-    let outcome_a = String::from_str(&env, "Yes");
-    let outcome_b = String::from_str(&env, "No");
-    let duration = 3600;
-
-    let result = client.create_pool(
-        &creator,
-        &name_str,
-        &description,
-        &outcome_a,
-        &outcome_b,
-        &duration,
-    );
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_metadata_empty() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let contract_id = env.register(PredinexContract, ());
-    let client = PredinexContractClient::new(&env, &contract_id);
-
-    let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
-    client.initialize(&token_id.address(), &token_admin);
-
-    let creator = Address::generate(&env);
-    // Test empty string
-    let name = String::from_str(&env, "");
-    let description = String::from_str(&env, "Valid description");
-    let outcome_a = String::from_str(&env, "Yes");
-    let outcome_b = String::from_str(&env, "No");
-    let duration = 3600;
-
-    let result = client.create_pool(
-        &creator,
-        &name,
-        &description,
-        &outcome_a,
-        &outcome_b,
-        &duration,
-    );
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_metadata_whitespace() {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let contract_id = env.register(PredinexContract, ());
-    let client = PredinexContractClient::new(&env, &contract_id);
-
-    let token_admin = Address::generate(&env);
-    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
-    client.initialize(&token_id.address(), &token_admin);
-
-    let creator = Address::generate(&env);
-    // Test whitespace only
-    let name = String::from_str(&env, "   ");
-    let description = String::from_str(&env, "Valid description");
-    let outcome_a = String::from_str(&env, "Yes");
-    let outcome_b = String::from_str(&env, "No");
-    let duration = 3600;
-
-    let result = client.create_pool(
-        &creator,
-        &name,
-        &description,
-        &outcome_a,
-        &outcome_b,
-        &duration,
-    );
-    assert!(result.is_err());
-}
 
 // ============================================================================
 // Issue #193: Contract configuration read method tests
@@ -2979,4 +2821,83 @@ fn i2_get_config_reflects_updates() {
 
     assert_eq!(config.creation_fee, 5000i128);
     assert_eq!(config.protocol_fee_bps, 500u32);
+}
+
+// ============================================================================
+// Issue #154: Metadata length limit tests
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "Title exceeds max length")]
+fn test_create_pool_exceeds_title_length() {
+    let t = setup();
+    let long_title_str = std::string::String::from_utf8(std::vec![b'A'; 101]).unwrap();
+    let long_title = String::from_str(&t.env, &long_title_str);
+    
+    t.client.create_pool(
+        &t.admin,
+        &long_title,
+        &String::from_str(&t.env, "Description"),
+        &String::from_str(&t.env, "Yes"),
+        &String::from_str(&t.env, "No"),
+        &3_600u64,
+    );
+}
+
+#[test]
+#[should_panic(expected = "Description exceeds max length")]
+fn test_create_pool_exceeds_description_length() {
+    let t = setup();
+    let long_desc_str = std::string::String::from_utf8(std::vec![b'B'; 1001]).unwrap();
+    let long_desc = String::from_str(&t.env, &long_desc_str);
+    
+    t.client.create_pool(
+        &t.admin,
+        &String::from_str(&t.env, "Title"),
+        &long_desc,
+        &String::from_str(&t.env, "Yes"),
+        &String::from_str(&t.env, "No"),
+        &3_600u64,
+    );
+}
+
+#[test]
+#[should_panic(expected = "Outcome exceeds max length")]
+fn test_create_pool_exceeds_outcome_length() {
+    let t = setup();
+    let long_outcome_str = std::string::String::from_utf8(std::vec![b'C'; 51]).unwrap();
+    let long_outcome = String::from_str(&t.env, &long_outcome_str);
+    
+    t.client.create_pool(
+        &t.admin,
+        &String::from_str(&t.env, "Title"),
+        &String::from_str(&t.env, "Description"),
+        &long_outcome, // A exceeds
+        &String::from_str(&t.env, "No"),
+        &3_600u64,
+    );
+}
+
+#[test]
+fn test_create_pool_max_lengths_accepted() {
+    let t = setup();
+    
+    let title_str = std::string::String::from_utf8(std::vec![b'T'; 100]).unwrap();
+    let desc_str = std::string::String::from_utf8(std::vec![b'D'; 1000]).unwrap();
+    let out_a_str = std::string::String::from_utf8(std::vec![b'A'; 50]).unwrap();
+    let out_b_str = std::string::String::from_utf8(std::vec![b'B'; 50]).unwrap();
+    
+    let pool_id = t.client.create_pool(
+        &t.admin,
+        &String::from_str(&t.env, &title_str),
+        &String::from_str(&t.env, &desc_str),
+        &String::from_str(&t.env, &out_a_str),
+        &String::from_str(&t.env, &out_b_str),
+        &3_600u64,
+    );
+    
+    let pool = t.client.get_pool(&pool_id).unwrap();
+    assert_eq!(pool.title.len(), 100);
+    assert_eq!(pool.description.len(), 1000);
+    assert_eq!(pool.outcome_a_name.len(), 50);
 }

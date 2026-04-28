@@ -109,6 +109,11 @@ if (!result.valid) {
 }
 ```
 
+Contract-aligned metadata limits for pool creation:
+- `title`: max `100` chars
+- `description`: max `1000` chars
+- `outcomeA` / `outcomeB`: max `50` chars each
+
 ### Logging
 
 ```typescript

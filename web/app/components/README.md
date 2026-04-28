@@ -1,6 +1,6 @@
 # Wallet Connection Components
 
-This directory contains the enhanced wallet connection system for Predinex, providing comprehensive Stacks wallet integration.
+This directory contains the wallet connection UI for Predinex. The current support matrix is documented in [WALLET_NETWORK_SUPPORT.md](../../docs/WALLET_NETWORK_SUPPORT.md).
 
 ## Components
 
@@ -8,8 +8,8 @@ This directory contains the enhanced wallet connection system for Predinex, prov
 The main wallet connection interface component.
 
 **Features:**
-- Multi-wallet provider support (Hiro, Xverse, Leather)
 - Wallet provider selection dropdown
+- Entry point for the currently supported wallet flow
 - Balance display and refresh functionality
 - Loading states and error handling
 - Responsive design
@@ -24,7 +24,7 @@ function MyComponent() {
 ```
 
 ### NetworkSwitcher
-Component for switching between Stacks mainnet and testnet.
+Component for switching between the currently supported Stellar networks.
 
 **Features:**
 - Visual network status indicator
@@ -93,7 +93,7 @@ Main hook for accessing wallet functionality.
 - `availableWallets`: List of detected wallet providers
 - `connect(walletType?)`: Connect to a specific wallet
 - `disconnect()`: Disconnect current wallet
-- `switchNetwork(network)`: Switch between networks
+- `switchNetwork(network)`: Switch between supported networks
 - `signMessage(message)`: Sign a message
 - `sendTransaction(payload)`: Send a transaction
 - `refreshBalance()`: Refresh wallet balance
@@ -165,4 +165,4 @@ Supported browsers:
 - Safari 14+
 - Edge 90+
 
-Mobile wallet support varies by provider and may require specific mobile apps.
+For wallet and network support details, see [WALLET_NETWORK_SUPPORT.md](../../docs/WALLET_NETWORK_SUPPORT.md).

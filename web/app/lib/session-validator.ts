@@ -67,7 +67,7 @@ export class SessionValidator {
     }
 
     // Check address format
-    if (!this.isValidStacksAddress(session.address)) {
+    if (!this.isValidStellarAddress(session.address)) {
       return { 
         isValid: false, 
         reason: 'Invalid address format',
@@ -106,12 +106,12 @@ export class SessionValidator {
   }
 
   /**
-   * Check if address is a valid Stacks address
+   * Check if address is a valid Stellar address
    */
-  private static isValidStacksAddress(address: string): boolean {
-    // Stacks addresses start with SP (mainnet) or ST (testnet)
-    const stacksAddressRegex = /^S[PT][0-9A-HJKMNP-TV-Z]{39}$/;
-    return stacksAddressRegex.test(address);
+  private static isValidStellarAddress(address: string): boolean {
+    // Stellar addresses start with G (public keys) or C (contracts), 56 characters total
+    const stellarAddressRegex = /^[GC][A-Z0-9]{55}$/;
+    return stellarAddressRegex.test(address);
   }
 
   /**

@@ -6,6 +6,7 @@ import AuthGuard from '../components/AuthGuard';
 import { useUserActivity } from '../hooks/useUserActivity';
 import { useActiveBets } from '../lib/hooks/useActiveBets';
 import { useWallet } from '../components/WalletAdapterProvider';
+import { useClaimWinnings } from '../lib/hooks/useClaimWinnings';
 import RouteErrorBoundary from '../../components/RouteErrorBoundary';
 import { EmptyState } from '../../components/EmptyState';
 import { DisconnectedState } from '../../components/DisconnectedState';
@@ -48,6 +49,7 @@ const ActiveBetsCard = dynamic(() => import('../components/dashboard/ActiveBetsC
 
 function DashboardContent() {
   const { address: stxAddress, isConnected } = useWallet();
+  const { claimTransactions, claim } = useClaimWinnings(stxAddress);
   
   if (!isConnected) {
     return <DisconnectedState />;
@@ -58,8 +60,8 @@ function DashboardContent() {
     isLoading: activityLoading,
     error: activityError,
     refresh: refreshActivity,
-  } = useUserActivity(stxAddress || undefined, 5);
-  const { activeBets, isLoading: betsLoading, refresh: refreshBets } = useActiveBets(stxAddress || undefined);
+  } = useUserActivity(stxAddress ?? undefined, 5);
+  const { activeBets, isLoading: betsLoading, refresh: refreshBets } = useActiveBets(stxAddress);
 
   return (
     <main className="min-h-screen bg-background">
@@ -84,9 +86,12 @@ function DashboardContent() {
               ) : (
                 <ActiveBetsCard
                   bets={activeBets}
-                  claimTransactions={new Map()}
-                  onClaim={() => {
-                    refreshBets();
+                  claimTransactions={claimTransactions}
+                  onClaim={(poolId) => {
+                    void claim(poolId, () => {
+                      refreshActivity();
+                      refreshBets();
+                    });
                   }}
                   isLoading={betsLoading}
                 />

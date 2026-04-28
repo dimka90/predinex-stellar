@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { predinexReadApi } from '../lib/adapters/predinex-read-api';
 import type { ActivityItem } from '../lib/adapters/types';
 import { userActivityCache } from '../lib/cache-invalidation';
+import { useVisibilityAwarePolling } from '../lib/hooks/useVisibilityAwarePolling';
+
+const REFRESH_INTERVAL_MS = 30_000;
 
 interface UseUserActivityReturn {
     activities: ActivityItem[];
@@ -54,9 +57,9 @@ export function useUserActivity(
         }
     }, [address, limit]);
 
-    useEffect(() => {
-        fetchActivity();
-    }, [fetchActivity]);
+    useVisibilityAwarePolling(fetchActivity, REFRESH_INTERVAL_MS, {
+        enabled: !!address,
+    });
 
     return {
         activities,

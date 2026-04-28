@@ -6,10 +6,10 @@
     --foreground: #fafafa;
     --primary: #8b5cf6;
     --primary-foreground: #ffffff;
-    --muted: #121212;
-    --muted-foreground: #a3a3a3;
+    --muted: #161616;
+    --muted-foreground: #d1d5db;
     --accent: #22d3ee;
-    --border: #1e1e1e;
+    --border: #2b2b2b;
 
     /* Transitions */
     --transition-fast: 150ms;
@@ -60,14 +60,14 @@ body {
 
 /* Premium Glassmorphism */
 .glass {
-    background: rgba(10, 10, 10, 0.4);
+    background: rgba(8, 8, 8, 0.72);
     backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .glass-panel {
-    @apply bg-background/60 backdrop-blur-xl border border-border;
+    @apply bg-background/80 backdrop-blur-xl border border-border;
 }
 
 .glass-light {

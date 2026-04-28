@@ -5,6 +5,7 @@ import { useIncentives } from '../lib/hooks/useIncentives';
 import { useWallet } from './WalletAdapterProvider';
 import { getStacksCoreApiBaseUrl, predinexReadApi } from '../lib/adapters/predinex-read-api';
 import { calculateTotalIncentive, DEFAULT_INCENTIVE_CONFIG, BetterIncentive } from '../lib/liquidity-incentives';
+import { TOKEN_SYMBOL } from '../lib/formatting';
 import { Gift, TrendingUp, Award, Zap } from 'lucide-react';
 
 interface IncentivesDisplayProps {
@@ -193,11 +194,11 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-muted/50 p-4 rounded-lg">
             <p className="text-sm text-muted-foreground">Pending Bonus</p>
-            <p className="text-2xl font-bold text-yellow-400">{totalPending.toFixed(2)} STX</p>
+            <p className="text-2xl font-bold text-yellow-400">{totalPending.toFixed(2)} {TOKEN_SYMBOL}</p>
           </div>
           <div className="bg-muted/50 p-4 rounded-lg">
             <p className="text-sm text-muted-foreground">Claimed Bonus</p>
-            <p className="text-2xl font-bold text-green-400">{totalClaimed.toFixed(2)} STX</p>
+            <p className="text-2xl font-bold text-green-400">{totalClaimed.toFixed(2)} {TOKEN_SYMBOL}</p>
           </div>
         </div>
       </div>
@@ -249,8 +250,8 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">{incentive.bonusAmount.toFixed(2)} STX</p>
-                    <button 
+                    <p className="font-bold">{incentive.bonusAmount.toFixed(2)} {TOKEN_SYMBOL}</p>
+                    <button
                       onClick={() => handleClaim(idx)}
                       className="text-xs px-2 py-1 bg-primary/20 hover:bg-primary/30 rounded mt-1 transition-all"
                     >
@@ -287,7 +288,7 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
                       </p>
                     </div>
                   </div>
-                  <p className="font-bold">{incentive.bonusAmount.toFixed(2)} STX</p>
+                  <p className="font-bold">{incentive.bonusAmount.toFixed(2)} {TOKEN_SYMBOL}</p>
                 </div>
               ))
             )}

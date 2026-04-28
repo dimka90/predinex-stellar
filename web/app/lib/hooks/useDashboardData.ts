@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { DashboardData, DashboardFilters, ClaimTransaction } from '../dashboard-types';
 import { fetchDashboardData, claimWinnings } from '../dashboard-api';
 import { invalidateOnClaimWinnings } from '../cache-invalidation';
+import { useVisibilityAwarePolling } from './useVisibilityAwarePolling';
 
 interface UseDashboardDataState {
   // Data
@@ -51,8 +52,7 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
   const [filters, setFiltersState] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [claimTransactions, setClaimTransactions] = useState<Map<number, ClaimTransaction>>(new Map());
   
-  // Refs for managing intervals and retry logic
-  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Refs for managing retry logic
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
   const isMountedRef = useRef(true);
@@ -109,34 +109,19 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
     await fetchData(true);
   }, [fetchData]);
 
-  // Set up automatic updates
-  useEffect(() => {
-    if (!userAddress) return;
-
-    // Initial fetch
-    fetchData(true);
-
-    // Set up interval for automatic updates
-    updateIntervalRef.current = setInterval(() => {
-      if (isMountedRef.current && isConnected) {
-        fetchData(false); // Background update without loading state
-      }
-    }, UPDATE_INTERVAL);
-
-    return () => {
-      if (updateIntervalRef.current) {
-        clearInterval(updateIntervalRef.current);
-      }
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, [userAddress, fetchData, isConnected]);
+  useVisibilityAwarePolling(
+    () => fetchData(false),
+    UPDATE_INTERVAL,
+    { enabled: !!userAddress }
+  );
 
   // Handle component unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
     };
   }, []);
 

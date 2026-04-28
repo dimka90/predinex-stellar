@@ -3,14 +3,21 @@
 import { useState } from 'react';
 import { useToast } from '../../providers/ToastProvider';
 import { predinexContract } from '../lib/adapters/predinex-contract';
-import { Loader2, Wallet, AlertCircle } from 'lucide-react';
+import { Loader2, Wallet, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import type { Pool } from '@/app/lib/adapters/types';
 import { useWallet } from './WalletAdapterProvider';
+import { useStacks } from './StacksProvider';
+import { useNetworkMismatch } from '@/lib/hooks/useNetworkMismatch';
+import { useTxStatus } from '../lib/hooks/useTxStatus';
 import { TruncatedAddress } from '../../components/TruncatedAddress';
 import {
     classifyConnectivityIssue,
 } from '../lib/network-errors';
 import { invalidateOnPlaceBet } from '../lib/cache-invalidation';
+import { toastMessages, connectivityErrorToast, showToastPayload } from '../../lib/toast-messages';
+
+// Minimum bet amount in STX
+const MIN_BET_STX = 0.1;
 
 interface BettingSectionProps {
     pool: Pool;
