@@ -225,9 +225,8 @@ pub enum ClaimPreview {
 pub struct BetEvent {
     pub outcome: u32,
     pub amount: i128,
-    pub amount_a: i128,
-    pub amount_b: i128,
-    pub total_bet: i128,
+    pub total_yes: i128,
+    pub total_no: i128,
 }
 
 /// #169 — Event payload emitted by `create_pool`.
@@ -488,8 +487,11 @@ impl PredinexContract {
 
         let pool_id = Self::get_pool_counter(&env);
 
-        if duration > MAX_POOL_DURATION_SECS {
-            panic!("Duration must be between 1 and 1000000 seconds");
+        if duration == 0 || duration > MAX_POOL_DURATION {
+            panic!(format!(
+                "Duration must be between 1 and {} seconds",
+                MAX_POOL_DURATION
+            ));
         }
 
         let created_at = env.ledger().timestamp();
@@ -637,6 +639,10 @@ impl PredinexContract {
             POOL_BUMP_TARGET,
         );
 
+        // Calculate totals for the event
+        let total_yes = pool.total_a;
+        let total_no = pool.total_b;
+
         env.events().publish(
             (
                 Symbol::new(&env, "place_bet"),
@@ -647,9 +653,8 @@ impl PredinexContract {
             BetEvent {
                 outcome,
                 amount,
-                amount_a: user_bet.amount_a,
-                amount_b: user_bet.amount_b,
-                total_bet: user_bet.total_bet,
+                total_yes,
+                total_no,
             },
         );
     }

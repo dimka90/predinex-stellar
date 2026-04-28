@@ -28,7 +28,12 @@ const CreateDisputeSection = dynamic(
 );
 
 export default function DisputeManagement() {
-  const { address } = useWallet();
+  const { address, isConnected } = useWallet();
+  
+  if (!isConnected) {
+    return <DisconnectedState />;
+  }
+
   const { disputes, selectedTab, setSelectedTab, isLoading, now, hasUserVoted, getUserVote, handleVote } =
     useDisputeManagement(address);
 
@@ -47,7 +52,11 @@ export default function DisputeManagement() {
             onVote={handleVote}
           />
         )}
-        {selectedTab === 'resolved' && <ResolvedDisputesSection disputes={disputes} />}
+        {selectedTab === 'resolved' && disputes.length === 0 ? (
+          <EmptyState message="No resolved disputes yet" />
+        ) : (
+          <ResolvedDisputesSection disputes={disputes} />
+        )}
         {selectedTab === 'create' && <CreateDisputeSection isLoading={isLoading} />}
       </div>
     </div>

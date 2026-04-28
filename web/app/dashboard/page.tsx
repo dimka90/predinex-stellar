@@ -7,6 +7,8 @@ import { useUserActivity } from '../hooks/useUserActivity';
 import { useActiveBets } from '../lib/hooks/useActiveBets';
 import { useWallet } from '../components/WalletAdapterProvider';
 import RouteErrorBoundary from '../../components/RouteErrorBoundary';
+import EmptyState from '../../components/EmptyState';
+import DisconnectedState from '../../components/DisconnectedState';
 
 function StatsSkeleton() {
   return (
@@ -45,7 +47,12 @@ const ActiveBetsCard = dynamic(() => import('../components/dashboard/ActiveBetsC
 });
 
 function DashboardContent() {
-  const { address: stxAddress } = useWallet();
+  const { address: stxAddress, isConnected } = useWallet();
+  
+  if (!isConnected) {
+    return <DisconnectedState />;
+  }
+
   const {
     activities,
     isLoading: activityLoading,
@@ -72,23 +79,31 @@ function DashboardContent() {
                 <div className="w-2 h-6 bg-primary rounded-full" />
                 Active Bets
               </h2>
-              <ActiveBetsCard
-                bets={activeBets}
-                claimTransactions={new Map()}
-                onClaim={() => {
-                  refreshBets();
-                }}
-                isLoading={betsLoading}
-              />
+              {activeBets.length === 0 ? (
+                <EmptyState message="No active bets yet" />
+              ) : (
+                <ActiveBetsCard
+                  bets={activeBets}
+                  claimTransactions={new Map()}
+                  onClaim={() => {
+                    refreshBets();
+                  }}
+                  isLoading={betsLoading}
+                />
+              )}
             </div>
             <div className="p-8 rounded-3xl border border-border bg-card/40 glass shadow-xl">
-              <ActivityFeed
-                activities={activities}
-                isLoading={activityLoading}
-                error={activityError}
-                onRefresh={refreshActivity}
-                limit={5}
-              />
+              {activities.length === 0 ? (
+                <EmptyState message="No activity yet" />
+              ) : (
+                <ActivityFeed
+                  activities={activities}
+                  isLoading={activityLoading}
+                  error={activityError}
+                  onRefresh={refreshActivity}
+                  limit={5}
+                />
+              )}
             </div>
           </div>
         </div>

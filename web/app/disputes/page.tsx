@@ -2,6 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import Navbar from '../components/Navbar';
+import EmptyState from '../../components/EmptyState';
+import DisconnectedState from '../../components/DisconnectedState';
 
 function DisputeManagementSkeleton() {
   return (
