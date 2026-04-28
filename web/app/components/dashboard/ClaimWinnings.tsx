@@ -5,6 +5,7 @@ import { Gift, CheckCircle, AlertCircle, RefreshCw, ExternalLink } from 'lucide-
 import Link from 'next/link';
 import { UserBet, ClaimTransaction } from '../../lib/dashboard-types';
 import { formatCurrency } from '../../lib/dashboard-utils';
+import TransactionReceipt, { TransactionReceiptData } from '../TransactionReceipt';
 
 interface ClaimWinningsProps {
   claimableBets: UserBet[];
@@ -23,6 +24,8 @@ export default function ClaimWinnings({
 }: ClaimWinningsProps) {
   const [selectedBets, setSelectedBets] = useState<Set<number>>(new Set());
   const [showBatchClaim, setShowBatchClaim] = useState(false);
+  const [receiptData, setReceiptData] = useState<TransactionReceiptData | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const totalClaimable = claimableBets.reduce((sum, bet) => sum + (bet.claimableAmount || 0), 0);
   const selectedClaimable = claimableBets
@@ -45,6 +48,26 @@ export default function ClaimWinnings({
     } else {
       setSelectedBets(new Set());
     }
+  };
+
+  const handleViewReceipt = (bet: UserBet) => {
+    const claimTx = claimTransactions.get(bet.poolId);
+    if (!claimTx?.txId) return;
+
+    const receipt: TransactionReceiptData = {
+      txId: claimTx.txId,
+      network: 'testnet', // TODO: get from network config
+      marketId: bet.poolId,
+      marketTitle: bet.marketTitle,
+      type: 'claim',
+      amount: bet.claimableAmount,
+      outcome: bet.outcomeName,
+      status: claimTx.status,
+      error: claimTx.error,
+      timestamp: Date.now(),
+    };
+    setReceiptData(receipt);
+    setShowReceipt(true);
   };
 
   const handleBatchClaim = () => {
@@ -202,31 +225,37 @@ export default function ClaimWinnings({
                   </div>
 
                   {/* Transaction Status */}
-                  {claimTx && (
-                    <div className="mb-3">
-                      {isPending && (
-                        <div className="flex items-center gap-2 text-sm text-blue-500">
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>Processing claim transaction...</span>
-                        </div>
-                      )}
-                      
-                      {isSuccess && (
-                        <div className="flex items-center gap-2 text-sm text-green-500">
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Successfully claimed!</span>
-                          {claimTx.txId && (
-                            <a 
-                              href={`https://explorer.stacks.co/txid/${claimTx.txId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="underline hover:no-underline"
-                            >
-                              View transaction
-                            </a>
-                          )}
-                        </div>
-                      )}
+                   {claimTx && (
+                     <div className="mb-3">
+                       {isPending && (
+                         <div className="flex items-center gap-2 text-sm text-blue-500">
+                           <RefreshCw className="w-4 h-4 animate-spin" />
+                           <span>Processing claim transaction...</span>
+                         </div>
+                       )}
+                       
+                       {isSuccess && (
+                         <div className="flex items-center gap-2 text-sm text-green-500">
+                           <CheckCircle className="w-4 h-4" />
+                           <span>Successfully claimed!</span>
+                           {claimTx.txId && (
+                             <a 
+                               href={`https://explorer.stacks.co/txid/${claimTx.txId}`}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               className="underline hover:no-underline"
+                             >
+                               View transaction
+                             </a>
+                           )}
+                           <button
+                             onClick={() => handleViewReceipt(bet)}
+                             className="text-xs underline hover:no-underline ml-2"
+                           >
+                             View Receipt
+                           </button>
+                         </div>
+                       )}
                       
                       {isFailed && (
                         <div className="flex items-center gap-2 text-sm text-red-500">
@@ -287,6 +316,18 @@ export default function ClaimWinnings({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transaction Receipt Modal */}
+      {receiptData && (
+        <TransactionReceipt
+          receipt={receiptData}
+          isOpen={showReceipt}
+          onClose={() => {
+            setShowReceipt(false);
+            setReceiptData(null);
+          }}
+        />
       )}
     </div>
   );

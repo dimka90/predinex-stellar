@@ -30,6 +30,11 @@ mod test;
 // upgrade expectations published to consumers.
 pub const EVENT_SCHEMA_VERSION: &str = "v1";
 
+/// #191 — Contract state schema version for on-chain compatibility checks.
+/// Bumped (e.g. "v2") whenever the persistent state layout changes in a
+/// backward-incompatible way. Stored under `DataKey::ContractVersion`.
+pub const CONTRACT_STATE_VERSION: &str = "v1";
+
 /// Build the schema-version `Symbol` used as topic position 1 on every event.
 fn event_version(env: &Env) -> Symbol {
     Symbol::new(env, EVENT_SCHEMA_VERSION)
@@ -58,6 +63,8 @@ pub enum DataKey {
     PoolSettlementProtocolFee(u32),
     /// #195 — running total credited to aggregate `Treasury` from this pool (fee + dust).
     PoolTreasuryCredited(u32),
+    /// #191 — contract state schema version stored on-chain for compatibility checks.
+    ContractVersion,
 }
 
 // #189 — TTL bump policy for persistent storage entries.
@@ -258,6 +265,8 @@ pub struct ContractConfig {
     pub protocol_fee_bps: u32,
     /// Event schema version for indexer compatibility.
     pub event_schema_version: Symbol,
+    /// #191 — contract state schema version for on-chain compatibility checks.
+    pub contract_state_version: Symbol,
 }
 
 /// Event payload emitted by `place_bet`.
@@ -350,6 +359,11 @@ impl PredinexContract {
             .persistent()
             .set(&DataKey::TreasuryRecipient, &treasury_recipient);
         env.storage().persistent().set(&DataKey::Treasury, &0i128);
+        // #191 — persist the contract state schema version on initialization.
+        env.storage().persistent().set(
+            &DataKey::ContractVersion,
+            &Symbol::new(&env, CONTRACT_STATE_VERSION),
+        );
     }
 
     /// #179 — Set the per-pool creation fee (in stroops). Only the treasury
@@ -467,6 +481,11 @@ impl PredinexContract {
             creation_fee,
             protocol_fee_bps,
             event_schema_version: Symbol::new(&env, EVENT_SCHEMA_VERSION),
+            contract_state_version: env
+                .storage()
+                .persistent()
+                .get(&DataKey::ContractVersion)
+                .unwrap_or(Symbol::new(&env, CONTRACT_STATE_VERSION)),
         }
     }
 
