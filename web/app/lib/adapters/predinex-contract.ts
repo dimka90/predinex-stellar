@@ -4,7 +4,7 @@
  */
 import { openContractCall } from '@stacks/connect';
 import type { Finished } from '@stacks/connect';
-import { uintCV } from '@stacks/transactions';
+import { uintCV, stringAsciiCV } from '@stacks/transactions';
 import { getRuntimeConfig } from '../runtime-config';
 import { callContract } from '../../../lib/appkit-transactions';
 
@@ -46,6 +46,35 @@ export const predinexContract = {
       functionName: 'claim-winnings',
       functionArgs: [uintCV(params.poolId)],
       network: cfg.network,
+      onFinish: params.onFinish,
+      onCancel: params.onCancel,
+    });
+  },
+
+  /**
+   * Submit a `create-pool` contract call (wallet prompt).
+   */
+  async createMarket(params: {
+    title: string;
+    description: string;
+    outcomeA: string;
+    outcomeB: string;
+    durationSeconds: number;
+    onFinish?: Finished;
+    onCancel?: () => void;
+  }): Promise<void> {
+    const { contract } = getRuntimeConfig();
+    await openContractCall({
+      contractAddress: contract.address,
+      contractName: contract.name,
+      functionName: 'create-pool',
+      functionArgs: [
+        stringAsciiCV(params.title),
+        stringAsciiCV(params.description),
+        stringAsciiCV(params.outcomeA),
+        stringAsciiCV(params.outcomeB),
+        uintCV(params.durationSeconds),
+      ],
       onFinish: params.onFinish,
       onCancel: params.onCancel,
     });
