@@ -3,7 +3,7 @@
  * Covers currency, percentage, address, duration, and number formatting.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   stxToMicroStx,
   microStxToStx,
@@ -19,9 +19,27 @@ import {
   formatTimestamp,
   formatNumber,
   formatNumberCompact,
-} from '../app/lib/formatting';
+  formatTokenAmount,
+  formatTokenAmountCompact,
+  TOKEN_SYMBOL,
+  TOKEN_CONFIG,
+} from '../../app/lib/formatting';
 
 describe('Currency Formatting', () => {
+  describe('Configurable Token Symbol', () => {
+    it('uses default STX symbol when env is not set', () => {
+      expect(TOKEN_SYMBOL).toBe('STX');
+    });
+
+    it('formatTokenAmount uses configurable symbol', () => {
+      expect(formatTokenAmount(1_000_000)).toContain('STX');
+    });
+
+    it('formatTokenAmountCompact uses configurable symbol', () => {
+      expect(formatTokenAmountCompact(1_000_000)).toContain('STX');
+    });
+  });
+
   describe('stxToMicroStx', () => {
     it('converts STX to microSTX correctly', () => {
       expect(stxToMicroStx(1)).toBe(1_000_000);
@@ -57,45 +75,45 @@ describe('Currency Formatting', () => {
   });
 
   describe('formatStxAmount', () => {
-    it('formats microSTX with STX suffix', () => {
-      expect(formatStxAmount(1_000_000)).toBe('1.00 STX');
-      expect(formatStxAmount(1_500_000)).toBe('1.50 STX');
+    it('formats microSTX with configurable token suffix', () => {
+      expect(formatStxAmount(1_000_000)).toBe(`1.00 ${TOKEN_SYMBOL}`);
+      expect(formatStxAmount(1_500_000)).toBe(`1.50 ${TOKEN_SYMBOL}`);
     });
 
     it('uses locale-aware number formatting', () => {
-      expect(formatStxAmount(1_234_567_890)).toBe('1,234.567890 STX');
-      expect(formatStxAmount(100_000_000)).toBe('100.00 STX');
+      expect(formatStxAmount(1_234_567_890)).toBe(`1,234.56789 ${TOKEN_SYMBOL}`);
+      expect(formatStxAmount(100_000_000)).toBe(`100.00 ${TOKEN_SYMBOL}`);
     });
 
     it('handles small values with up to 6 decimals', () => {
-      expect(formatStxAmount(1)).toBe('0.000001 STX');
-      expect(formatStxAmount(100)).toBe('0.000100 STX');
+      expect(formatStxAmount(1)).toBe(`0.000001 ${TOKEN_SYMBOL}`);
+      expect(formatStxAmount(100)).toBe(`0.0001 ${TOKEN_SYMBOL}`);
     });
 
     it('handles zero', () => {
-      expect(formatStxAmount(0)).toBe('0.00 STX');
+      expect(formatStxAmount(0)).toBe(`0.00 ${TOKEN_SYMBOL}`);
     });
   });
 
   describe('formatStxAmountCompact', () => {
-    it('uses M suffix for millions', () => {
-      expect(formatStxAmountCompact(1_500_000_000_000)).toBe('1.5M STX');
-      expect(formatStxAmountCompact(2_000_000_000_000)).toBe('2.0M STX');
+    it('uses M suffix for millions with configurable symbol', () => {
+      expect(formatStxAmountCompact(1_500_000_000_000)).toBe(`1.5M ${TOKEN_SYMBOL}`);
+      expect(formatStxAmountCompact(2_000_000_000_000)).toBe(`2.0M ${TOKEN_SYMBOL}`);
     });
 
-    it('uses K suffix for thousands', () => {
-      expect(formatStxAmountCompact(1_500_000_000)).toBe('1.5K STX');
-      expect(formatStxAmountCompact(999_000_000)).toBe('999.0 STX');
+    it('uses K suffix for thousands with configurable symbol', () => {
+      expect(formatStxAmountCompact(1_500_000_000)).toBe(`1.5K ${TOKEN_SYMBOL}`);
+      expect(formatStxAmountCompact(999_000_000)).toBe(`999 ${TOKEN_SYMBOL}`);
     });
 
-    it('shows full number for values under 1000 STX', () => {
-      expect(formatStxAmountCompact(500_000_000)).toBe('500 STX');
-      expect(formatStxAmountCompact(1_000_000)).toBe('1 STX');
+    it('shows full number for values under 1000 tokens', () => {
+      expect(formatStxAmountCompact(500_000_000)).toBe(`500 ${TOKEN_SYMBOL}`);
+      expect(formatStxAmountCompact(1_000_000)).toBe(`1 ${TOKEN_SYMBOL}`);
     });
 
     it('handles small values with decimals', () => {
-      expect(formatStxAmountCompact(500_000)).toBe('0.5 STX');
-      expect(formatStxAmountCompact(1)).toBe('0.000001 STX');
+      expect(formatStxAmountCompact(500_000)).toBe(`0.5 ${TOKEN_SYMBOL}`);
+      expect(formatStxAmountCompact(1)).toBe(`0.000001 ${TOKEN_SYMBOL}`);
     });
   });
 
