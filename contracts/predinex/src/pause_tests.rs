@@ -43,8 +43,6 @@ impl TestCtx {
 
         let pool_creator = Address::generate(&env);
 
-        let env: Env = unsafe { core::mem::transmute(env) };
-
         TestCtx {
             env,
             client,

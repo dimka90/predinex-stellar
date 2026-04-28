@@ -18,7 +18,6 @@ fn setup_contract() -> (Env, PredinexContractClient<'static>, Address, Address) 
     client.initialize(&token_id.address(), &token_admin);
 
     let client: PredinexContractClient<'static> = unsafe { core::mem::transmute(client) };
-    let env: Env = unsafe { core::mem::transmute(env) };
 
     (env, client, token_admin, token_id.address())
 }

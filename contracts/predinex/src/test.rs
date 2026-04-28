@@ -2,9 +2,7 @@
 extern crate std;
 use super::*;
 use soroban_sdk::String;
-use soroban_sdk::{
-    testutils::Address as _, testutils::Events, testutils::Ledger, Address, Env, IntoVal,
-};
+use soroban_sdk::{testutils::Address as _, testutils::Events, testutils::Ledger, Address, Env};
 use std::format;
 
 #[test]
@@ -169,9 +167,9 @@ fn test_place_bet_rejects_pool_total_overflow() {
     client.place_bet(&user1, &pool_id, &0, &huge_amount);
 
     // Overflow on the second bet should fail predictably.
-    let result = std::panic::catch_unwind(|| {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         client.place_bet(&user2, &pool_id, &0, &2);
-    });
+    }));
 
     assert!(
         result.is_err(),
@@ -759,7 +757,6 @@ fn setup() -> TestEnv<'static> {
 
     // Leak env lifetime — acceptable in tests where we own everything
     let client: PredinexContractClient<'static> = unsafe { core::mem::transmute(client) };
-    let env: Env = unsafe { core::mem::transmute(env) };
 
     TestEnv {
         env,
