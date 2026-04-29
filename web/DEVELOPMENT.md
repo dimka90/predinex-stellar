@@ -24,6 +24,8 @@ This document provides instructions for developers looking to contribute to the 
    NEXT_PUBLIC_NETWORK=testnet
    ```
 
+   Runtime config boundaries are enforced by tests. Before adding a new client-exposed env key, update `app/lib/env-boundary.ts` and `docs/RUNTIME_CONFIG_BOUNDARIES.md`.
+
 3. **Run Development Server**:
    ```bash
    npm run dev
