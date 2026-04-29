@@ -9,7 +9,6 @@ import * as NetworkMismatch from '../../lib/hooks/useNetworkMismatch';
 import * as TxStatusHook from '../../app/lib/hooks/useTxStatus';
 import { useToast } from '../../providers/ToastProvider';
 import { predinexContract } from '../../app/lib/adapters/predinex-contract';
-import { toastMessages } from '../../lib/toast-messages';
 import { renderWithProviders } from '../helpers/renderWithProviders';
 
 // Mock WalletAdapterProvider hook
@@ -137,10 +136,7 @@ describe('BettingSection', () => {
     const betButton = screen.getByText(/Bet on Outcome A/i);
     await user.click(betButton);
 
-    expect(showToast).toHaveBeenCalledWith(
-      toastMessages.bet.invalidAmount.message,
-      toastMessages.bet.invalidAmount.type
-    );
+    expect(showToast).toHaveBeenCalledWith('Please enter a valid amount', 'error');
     expect(vi.mocked(predinexContract.placeBet)).not.toHaveBeenCalled();
   });
 
@@ -151,12 +147,12 @@ describe('BettingSection', () => {
     renderWithProviders(<BettingSection pool={mockPool} poolId={0} />);
 
     const input = screen.getByLabelText(/Enter bet amount/i);
-    await user.type(input, '0.05'); // Less than 0.1 STX minimum
+    await user.type(input, '0.05'); // Less than 0.1 XLM minimum
 
     const betButton = screen.getByText(/Bet on Outcome A/i);
     await user.click(betButton);
 
-    expect(showToast).toHaveBeenCalledWith('Minimum bet amount is 0.1 STX.', 'error');
+    expect(showToast).toHaveBeenCalledWith('Minimum bet is 0.1 XLM', 'error');
     expect(vi.mocked(predinexContract.placeBet)).not.toHaveBeenCalled();
   });
 
@@ -178,7 +174,7 @@ describe('BettingSection', () => {
         expect.objectContaining({
           poolId: 0,
           outcome: 0,
-          amountMicroStx: 1_500_000,
+          amountMicroStx: 15_000_000,
         })
       );
     });

@@ -51,7 +51,7 @@ export default function AuthGuard({
             
             <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
             <p className="text-muted-foreground mb-6">
-              You need to connect your Stacks wallet to access the dashboard and view your betting statistics.
+              You need to connect your Stellar wallet to access the dashboard and view your betting statistics.
             </p>
             
             <div className="space-y-4">
@@ -77,7 +77,7 @@ export default function AuthGuard({
                 <div className="text-sm text-left">
                   <p className="font-medium text-blue-500 mb-1">Supported Wallets</p>
                   <p className="text-muted-foreground">
-                    Leather Wallet and Xverse are supported for connecting to Predinex.
+                    Freighter wallet is supported for connecting to Predinex on Stellar.
                   </p>
                 </div>
               </div>

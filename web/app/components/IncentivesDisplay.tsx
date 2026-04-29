@@ -108,7 +108,6 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
       setIsLoading(true);
       try {
         const contractIncentives = await fetchIncentivesFromContract(address);
-
         const pendingIncentives = await calculateRealIncentives(address, poolId || 0);
         
         const allIncentives: BetterIncentive[] = [

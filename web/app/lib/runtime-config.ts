@@ -37,14 +37,7 @@ export type RuntimeConfig = {
   soroban: SorobanConfig;
 };
 
-function getRequiredEnv(name: string): string {
-  const env =
-    typeof process !== 'undefined' && process.env ? process.env[name] : undefined;
-  if (!env) {
-    throw new Error(`Missing required config: ${name}. Set ${name} to 'mainnet' or 'testnet'.`);
-  }
-  return env;
-}
+const DEFAULT_NETWORK: SupportedNetwork = 'testnet';
 
 function parseNetwork(raw: string): SupportedNetwork {
   const v = raw.trim().toLowerCase();
@@ -110,14 +103,14 @@ let cachedConfig: RuntimeConfig | null = null;
 /**
  * Typed runtime config (contract, network selection, API endpoints).
  *
- * Fail-fast behavior:
- * - Throws if `NEXT_PUBLIC_NETWORK` is missing or invalid.
+ * Behavior:
+ * - Defaults to `testnet` when `NEXT_PUBLIC_NETWORK` is not set.
  * - Throws if derived contract/API configuration cannot be resolved.
  */
 export function getRuntimeConfig(): RuntimeConfig {
   if (cachedConfig) return cachedConfig;
 
-  const network = parseNetwork(getRequiredEnv('NEXT_PUBLIC_NETWORK'));
+  const network = parseNetwork(getOptionalEnv('NEXT_PUBLIC_NETWORK') ?? DEFAULT_NETWORK);
 
   const walletNet = WALLETCONNECT_CONFIG.networks[network];
   if (!walletNet?.coreApiUrl || !walletNet?.explorerUrl || !walletNet?.rpcUrl) {

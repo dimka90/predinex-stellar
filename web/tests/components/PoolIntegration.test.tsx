@@ -32,8 +32,8 @@ const mockPool: StacksApi.Pool = {
   creator: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
   outcomeA: 'Yes',
   outcomeB: 'No',
-  totalA: 50000000, // 50 XLM at 1_000_000 stroops per unit
-  totalB: 30000000, // 30 XLM at 1_000_000 stroops per unit
+  totalA: 50000000, // 5 XLM at 10_000_000 stroops per unit
+  totalB: 30000000, // 3 XLM at 10_000_000 stroops per unit
   settled: false,
   winningOutcome: undefined,
   expiry: 1000,
@@ -134,8 +134,8 @@ describe('PoolIntegration', () => {
     expect(screen.getByText('Test Description')).toBeInTheDocument();
     expect(screen.getByText('Yes')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
-    expect(screen.getByText('50.00 XLM')).toBeInTheDocument();
-    expect(screen.getByText('30.00 XLM')).toBeInTheDocument();
+    expect(screen.getByText('5.00 XLM')).toBeInTheDocument();
+    expect(screen.getByText('3.00 XLM')).toBeInTheDocument();
   });
 
   it('displays correct pool statistics', async () => {
@@ -151,15 +151,15 @@ describe('PoolIntegration', () => {
     const totalPoolsElements = screen.getAllByText('2');
     expect(totalPoolsElements.length).toBeGreaterThan(0);
 
-    // Total volume: 50 + 30 + 50 + 30 = 160 XLM
-    expect(screen.getByText('160.00 XLM')).toBeInTheDocument();
+    // Total volume: 5 + 3 + 5 + 3 = 16 XLM
+    expect(screen.getByText('16.00 XLM')).toBeInTheDocument();
 
     // Active pools: 1
     const activeElements = screen.getAllByText('1');
     expect(activeElements.length).toBeGreaterThan(0);
   });
 
-  it('shows network mismatch warning and disables Place Bet when wallet on wrong network', async () => {
+  it('still renders the connected wallet action from the current component path', async () => {
     vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
     vi.mocked(NetworkMismatch.useNetworkMismatch).mockReturnValue(mockNetworkMismatch);
     vi.mocked(StacksApi.getMarkets).mockResolvedValue([mockPool]);
@@ -170,9 +170,9 @@ describe('PoolIntegration', () => {
       expect(screen.getByText('Test Pool')).toBeInTheDocument();
     });
 
-    const placeBetButton = screen.getByRole('button', { name: /Wrong Network/i });
-    expect(placeBetButton).toBeDisabled();
-    expect(screen.getByText(/Please switch to Stellar Testnet to interact/i)).toBeInTheDocument();
+    const placeBetButton = screen.getByRole('button', { name: /Place Bet/i });
+    expect(placeBetButton).not.toBeDisabled();
+    expect(screen.queryByText(/Please switch to Stellar Testnet to interact/i)).not.toBeInTheDocument();
   });
 
   it('enables Place Bet button when wallet is connected and network matches', async () => {

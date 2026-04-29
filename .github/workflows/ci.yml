@@ -39,11 +39,11 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           # Budget definitions (KB). Update intentionally with a comment explaining the reason.
-          # Current Next.js 16 production output sits around 4.0MB total / 3.9MB JS
-          # because AppKit and chain clients ship large shared chunks. Tighten again
-          # once bundle-splitting work lands instead of failing every PR on baseline.
-          BUDGET_TOTAL_KB=4500
-          BUDGET_JS_KB=4000
+          # Current merged mainline output sits around 4.9MB total / 4.7MB JS
+          # after the wallet, oracle, and Soroban client additions now shipped
+          # in the shared app shell. Tighten again once chunk-splitting lands.
+          BUDGET_TOTAL_KB=5100
+          BUDGET_JS_KB=4900
           BUDGET_CSS_KB=80
 
           FAILED=0

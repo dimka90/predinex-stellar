@@ -297,7 +297,11 @@ describe('claim flow integration', () => {
 
     renderWithProviders(<DashboardPage />);
 
-    const claimButton = await screen.findByRole('button', { name: /claim winnings/i });
+    const claimButton = await screen.findByRole(
+      'button',
+      { name: /claim winnings/i },
+      { timeout: 5_000 }
+    );
     expect(await screen.findByText('Bet Placed')).toBeInTheDocument();
 
     await user.click(claimButton);

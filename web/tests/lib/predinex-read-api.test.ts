@@ -4,18 +4,14 @@ import { makeSorobanEvent, makeSorobanEventsResponse } from '../helpers/mock-sur
 
 const {
   mockGetUserActivityFromSoroban,
-  mockGetPool,
-  mockGetUserBet,
+  mockGetUserActivity,
   mockGetTotalVolume,
   mockGetMarkets,
-  mockGetUserActivity,
 } = vi.hoisted(() => ({
   mockGetUserActivityFromSoroban: vi.fn(),
-  mockGetPool: vi.fn(),
-  mockGetUserBet: vi.fn(),
+  mockGetUserActivity: vi.fn(),
   mockGetTotalVolume: vi.fn(),
   mockGetMarkets: vi.fn(),
-  mockGetUserActivity: vi.fn(),
 }));
 
 vi.mock('../../app/lib/runtime-config', () => ({
@@ -40,8 +36,6 @@ vi.mock('../../app/lib/runtime-config', () => ({
 }));
 
 vi.mock('../../app/lib/stacks-api', () => ({
-  getPool: mockGetPool,
-  getUserBet: mockGetUserBet,
   getTotalVolume: mockGetTotalVolume,
   getMarkets: mockGetMarkets,
   getUserActivity: mockGetUserActivity,
@@ -106,11 +100,14 @@ describe('predinexReadApi', () => {
     );
   });
 
-  it('retains the legacy stacks-api delegates where compatibility is still intentional', () => {
+  it('retains the compatibility delegates still used by the app shell', () => {
     expect(predinexReadApi.getPool).toEqual(expect.any(Function));
     expect(predinexReadApi.getUserBet).toEqual(expect.any(Function));
+    expect(predinexReadApi.getPoolCount).toEqual(expect.any(Function));
+    expect(predinexReadApi.getUserActivitySoroban).toEqual(expect.any(Function));
+    expect(predinexReadApi.getUserActivity).toBe(predinexReadApi.getUserActivitySoroban);
     expect(predinexReadApi.getTotalVolume).toBe(mockGetTotalVolume);
     expect(predinexReadApi.getMarkets).toBe(mockGetMarkets);
-    expect(predinexReadApi.getUserActivity).toBe(mockGetUserActivity);
+    expect(predinexReadApi.getStacksActivity).toBe(mockGetUserActivity);
   });
 });
