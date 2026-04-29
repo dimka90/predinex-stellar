@@ -1,57 +1,33 @@
 'use client';
 
-import type { UserData } from '@stacks/connect';
-import { ReactNode, createContext, useContext, useMemo } from 'react';
-import { WalletProvider, useWallet as useWalletAuth } from './WalletProvider';
-import { WalletClient } from '../lib/wallet-adapter';
+import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import { createFreighterAdapter, FreighterWalletClient } from '../lib/freighter-adapter';
 
-const WalletContext = createContext<WalletClient | undefined>(undefined);
-
-function getStxAddressFromUserData(userData: UserData | null | undefined): string | null {
-  const mainnet = userData?.profile?.stxAddress?.mainnet;
-  const testnet = userData?.profile?.stxAddress?.testnet;
-  const identityAddress = userData?.identityAddress;
-  return mainnet || testnet || identityAddress || null;
-}
-
-function WalletAdapterBridge({ children }: { children: ReactNode }) {
-  const { userData, authenticate, signOut, isLoading } = useWalletAuth();
-
-  const value: WalletClient = useMemo(() => {
-    const address = getStxAddressFromUserData(userData);
-    return {
-      chain: 'stacks',
-      isLoading,
-      isConnected: !!userData && !!address,
-      address,
-      connect: authenticate,
-      disconnect: signOut,
-    };
-  }, [userData, authenticate, signOut, isLoading]);
-
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
-}
+const WalletContext = createContext<FreighterWalletClient | undefined>(undefined);
 
 /**
  * WalletAdapterProvider
- * - Default implementation: uses the existing `StacksProvider` + `useStacks` hook.
- * - Alternate implementation: pass a `value` prop in tests/stories to swap adapters.
+ * - Tracks Freighter wallet state.
  */
 export function WalletAdapterProvider({
   children,
-  value,
 }: {
   children: ReactNode;
-  value?: WalletClient;
 }) {
-  if (value) {
-    return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
-  }
+  const [walletState, setWalletState] = useState<Partial<FreighterWalletClient>>({});
+
+  useEffect(() => {
+    // Initializing the adapter doesn't connect it
+    const client = createFreighterAdapter((patch) => {
+      setWalletState((prev) => ({ ...prev, ...patch }));
+    });
+    setWalletState(client);
+  }, []);
 
   return (
-    <WalletProvider>
-      <WalletAdapterBridge>{children}</WalletAdapterBridge>
-    </WalletProvider>
+    <WalletContext.Provider value={walletState as FreighterWalletClient}>
+      {children}
+    </WalletContext.Provider>
   );
 }
 

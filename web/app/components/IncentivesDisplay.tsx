@@ -106,9 +106,9 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
     async function loadIncentives() {
       setIsLoading(true);
       try {
-        const contractIncentives = await fetchIncentivesFromContract(userAddress);
+        const contractIncentives = await fetchIncentivesFromContract(userAddress!);
 
-        const pendingIncentives = await calculateRealIncentives(userAddress, poolId || 0);
+        const pendingIncentives = await calculateRealIncentives(userAddress!, poolId || 0);
         
         const allIncentives: BetterIncentive[] = [
           ...contractIncentives.map(inc => ({

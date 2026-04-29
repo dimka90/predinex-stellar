@@ -6,6 +6,8 @@ import { useDisputeManagement } from '../lib/disputes/useDisputeManagement';
 import { DisputePageHeader } from './disputes/DisputePageHeader';
 import { DisputeTabNav } from './disputes/DisputeTabNav';
 import { ActiveDisputesSection } from './disputes/ActiveDisputesSection';
+import { DisconnectedState } from '../../components/DisconnectedState';
+import { EmptyState } from '../../components/EmptyState';
 
 function TabPanelSkeleton() {
   return (

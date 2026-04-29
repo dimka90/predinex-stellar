@@ -8,12 +8,13 @@
  * @param title Pool title
  * @returns Validation result
  */
-import { MAX_POOL_DURATION_SECONDS } from './constants';
+import { MAX_POOL_DURATION_SECONDS as MAX_POOL_DURATION_SECS } from './constants';
+
+
 export const MAX_TITLE_LENGTH = 100;
 export const MAX_DESCRIPTION_LENGTH = 1000;
 export const MAX_OUTCOME_LENGTH = 50;
 export const MIN_POOL_DURATION_SECS = 300;
-export const MAX_POOL_DURATION_SECS = MAX_POOL_DURATION_SECONDS;
 
 export function validatePoolTitle(title: string): { valid: boolean; error?: string } {
   if (!title || title.trim().length === 0) {
@@ -104,17 +105,17 @@ export function validateBetAmount(amount: number): { valid: boolean; error?: str
     return { valid: false, error: 'Amount must be greater than 0' };
   }
   if (amount < 0.1) {
-    return { valid: false, error: 'Minimum bet is 0.1 STX' };
+    return { valid: false, error: 'Minimum bet is 0.1 XLM' };
   }
   if (amount > 1000000) {
-    return { valid: false, error: 'Maximum bet is 1,000,000 STX' };
+    return { valid: false, error: 'Maximum bet is 1,000,000 XLM' };
   }
   return { valid: true };
 }
 
 /**
  * Validate Stellar address format
- * @param address Stellar address
+ * @param address Stellar address (G... strkey)
  * @returns Validation result
  */
 export function validateStellarAddress(address: string): { valid: boolean; error?: string } {

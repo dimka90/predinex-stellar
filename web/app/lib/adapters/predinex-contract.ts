@@ -7,6 +7,18 @@ import type { Finished } from '@stacks/connect';
 import { uintCV, stringAsciiCV } from '@stacks/transactions';
 import { getRuntimeConfig } from '../runtime-config';
 import { callContract } from '../../../lib/appkit-transactions';
+import { SorobanTransactionService, TxStage } from '../soroban-transaction-service';
+import { FreighterWalletClient } from '../freighter-adapter';
+
+let sorobanService: SorobanTransactionService | null = null;
+
+function getSorobanService() {
+  if (!sorobanService) {
+    const { soroban, network } = getRuntimeConfig();
+    sorobanService = new SorobanTransactionService(soroban.rpcUrl, network);
+  }
+  return sorobanService;
+}
 
 export const predinexContract = {
   /**
@@ -78,5 +90,40 @@ export const predinexContract = {
       onFinish: params.onFinish,
       onCancel: params.onCancel,
     });
+  },
+
+  /**
+   * Submit a `create_pool` Soroban contract call (wallet prompt).
+   */
+  async createMarketSoroban(params: {
+    wallet: FreighterWalletClient;
+    title: string;
+    description: string;
+    outcomeA: string;
+    outcomeB: string;
+    durationSeconds: number;
+    onStageChange?: (stage: TxStage) => void;
+  }): Promise<{ txHash: string }> {
+    const { soroban } = getRuntimeConfig();
+    const service = getSorobanService();
+
+    const result = await service.createPool(
+      params.wallet,
+      soroban.contractId,
+      {
+        title: params.title,
+        description: params.description,
+        outcomeA: params.outcomeA,
+        outcomeB: params.outcomeB,
+        duration: params.durationSeconds,
+      },
+      params.onStageChange
+    );
+
+    if (result.status === 'FAILED') {
+      throw new Error(result.error || 'Transaction failed');
+    }
+
+    return { txHash: result.txHash };
   },
 };

@@ -170,6 +170,7 @@ export function useIncentives() {
     getTotalClaimedBonus,
     getPoolIncentiveStats,
     updateConfig,
+    setIncentives,
   };
 }
 // useIncentives hook improvement 1
