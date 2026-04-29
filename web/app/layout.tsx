@@ -4,6 +4,7 @@ import "./globals.css";
 import { WalletAdapterProvider } from "./components/WalletAdapterProvider";
 import { ToastProvider } from "../providers/ToastProvider";
 import { ThemeProvider } from "./context/ThemeContext";
+import { I18nProvider } from "./providers/I18nProvider";
 import Footer from "./components/Footer";
 import MarketListPreloader from "./components/MarketListPreloader";
 
@@ -55,13 +56,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
-          <WalletAdapterProvider>
-            <ToastProvider>
-              <MarketListPreloader />
-              {children}
-              <Footer />
-            </ToastProvider>
-          </WalletAdapterProvider>
+          <I18nProvider>
+            <WalletAdapterProvider>
+              <ToastProvider>
+                <MarketListPreloader />
+                {children}
+                <Footer />
+              </ToastProvider>
+            </WalletAdapterProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

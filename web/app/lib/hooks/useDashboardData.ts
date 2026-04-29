@@ -5,6 +5,7 @@ import { DashboardData, DashboardFilters, ClaimTransaction } from '../dashboard-
 import { fetchDashboardData, claimWinnings } from '../dashboard-api';
 import { invalidateOnClaimWinnings } from '../cache-invalidation';
 import { useVisibilityAwarePolling } from './useVisibilityAwarePolling';
+import { notifyBrowserEvent } from '../notifications';
 
 interface UseDashboardDataState {
   // Data
@@ -56,6 +57,7 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
   const isMountedRef = useRef(true);
+  const previousDataRef = useRef<DashboardData | null>(null);
 
   // Fetch dashboard data
   const fetchData = useCallback(async (showLoading: boolean = true) => {
@@ -75,9 +77,35 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
       const dashboardData = await fetchDashboardData(userAddress);
       
       if (isMountedRef.current) {
+        const previousData = previousDataRef.current;
         setData(dashboardData);
         setIsConnected(true);
         retryCountRef.current = 0;
+
+        if (previousData) {
+          if (dashboardData.userPortfolio.totalClaimable > previousData.userPortfolio.totalClaimable) {
+            notifyBrowserEvent('Payout available', {
+              body: `${dashboardData.userPortfolio.totalClaimable.toFixed(2)} STX is claimable.`,
+              tag: 'predinex-payout-available',
+            });
+          }
+
+          if (dashboardData.activeBets.length > previousData.activeBets.length) {
+            notifyBrowserEvent('Active bets updated', {
+              body: 'Your dashboard has new active positions.',
+              tag: 'predinex-active-bets-update',
+            });
+          }
+
+          if (dashboardData.userPortfolio.totalWinnings > previousData.userPortfolio.totalWinnings) {
+            notifyBrowserEvent('Bet resolved', {
+              body: 'A position settled in your favor.',
+              tag: 'predinex-bet-resolved',
+            });
+          }
+        }
+
+        previousDataRef.current = dashboardData;
       }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
@@ -195,6 +223,7 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
       setData(null);
       setError(null);
       setClaimTransactions(new Map());
+      previousDataRef.current = null;
       retryCountRef.current = 0;
     }
   }, [userAddress]);
