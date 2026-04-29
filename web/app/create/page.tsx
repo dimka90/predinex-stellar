@@ -11,6 +11,7 @@ import { predinexContract } from '../lib/adapters/predinex-contract';
 import { invalidateOnCreatePool } from '../lib/cache-invalidation';
 import { Loader2 } from 'lucide-react';
 import { TxStage } from '../lib/soroban-transaction-service';
+import { TransactionFeeModal } from '../components/TransactionFeeModal';
 
 const CREATE_MARKET_DRAFT_KEY = 'predinex_create_market_draft_v1';
 
@@ -43,6 +44,7 @@ export default function CreateMarket() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [stage, setStage] = useState<TxStage>('idle');
     const [txId, setTxId] = useState<string | null>(null);
+    const [feePrompt, setFeePrompt] = useState<{ feeStroops: string, resolve: (v: boolean) => void } | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -95,6 +97,11 @@ export default function CreateMarket() {
                 outcomeB: draft.outcomeB,
                 durationSeconds: duration,
                 onStageChange: (s) => setStage(s),
+                onFeeEstimated: (fee) => {
+                    return new Promise((resolve) => {
+                        setFeePrompt({ feeStroops: fee, resolve });
+                    });
+                }
             });
 
             setTxId(txHash);
@@ -107,6 +114,7 @@ export default function CreateMarket() {
         } finally {
             setIsSubmitting(false);
             setStage('idle');
+            setFeePrompt(null);
         }
     };
 
@@ -116,6 +124,23 @@ export default function CreateMarket() {
             <AuthGuard>
                 <div className="container mx-auto px-4 py-12 max-w-2xl">
                     <h1 className="text-3xl font-bold mb-8">Create New Market</h1>
+
+                    <TransactionFeeModal
+                        isOpen={!!feePrompt}
+                        actionName="Create Pool"
+                        feeStroops={feePrompt?.feeStroops || '0'}
+                        onConfirm={() => {
+                            feePrompt?.resolve(true);
+                            setFeePrompt(null);
+                        }}
+                        onCancel={() => {
+                            feePrompt?.resolve(false);
+                            setFeePrompt(null);
+                            setIsSubmitting(false);
+                            setStage('idle');
+                        }}
+                        isConfirming={stage === 'signing' || stage === 'submitting' || stage === 'polling'}
+                    />
 
                     {txId && (
                         <div role="status" className="mb-6 p-4 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400">

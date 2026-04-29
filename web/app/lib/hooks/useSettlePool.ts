@@ -3,35 +3,35 @@
 import { useCallback, useState } from 'react';
 import { useToast } from '@/providers/ToastProvider';
 import { predinexContract } from '../adapters/predinex-contract';
-import { invalidateOnClaimWinnings } from '../cache-invalidation';
 import { useWallet } from '../../components/WalletAdapterProvider';
 import { TxStage } from '../soroban-transaction-service';
 
-export type ClaimTxStatus = 'pending' | 'success' | 'failed';
+export type SettleTxStatus = 'pending' | 'success' | 'failed';
 
-export interface ClaimTxState {
-  status: ClaimTxStatus;
+export interface SettleTxState {
+  status: SettleTxStatus;
   txId?: string;
   error?: string;
 }
 
-export function useClaimWinnings(userAddress?: string | null) {
+export function useSettlePool() {
   const wallet = useWallet();
   const { showToast } = useToast();
-  const [claimTransactions, setClaimTransactions] = useState<Map<number, ClaimTxState>>(new Map());
+  const [settleTransactions, setSettleTransactions] = useState<Map<number, SettleTxState>>(new Map());
   
   const [feePrompt, setFeePrompt] = useState<{ feeStroops: string, resolve: (v: boolean) => void } | null>(null);
   const [stage, setStage] = useState<TxStage>('idle');
 
-  const claim = useCallback(
-    async (poolId: number, onSuccess?: () => void) => {
-      setClaimTransactions((prev) => new Map(prev).set(poolId, { status: 'pending' }));
+  const settle = useCallback(
+    async (poolId: number, winningOutcome: number, onSuccess?: () => void) => {
+      setSettleTransactions((prev) => new Map(prev).set(poolId, { status: 'pending' }));
       setStage('idle');
 
       try {
-        const { txHash } = await predinexContract.claimWinningsSoroban({
+        const { txHash } = await predinexContract.settlePoolSoroban({
           wallet,
           poolId,
+          winningOutcome,
           onStageChange: setStage,
           onFeeEstimated: (fee) => {
             return new Promise((resolve) => {
@@ -40,32 +40,28 @@ export function useClaimWinnings(userAddress?: string | null) {
           }
         });
 
-        if (userAddress) {
-          invalidateOnClaimWinnings({ poolId, userAddress });
-        }
-
-        setClaimTransactions((prev) =>
+        setSettleTransactions((prev) =>
           new Map(prev).set(poolId, { status: 'success', txId: txHash })
         );
-        showToast('Claim submitted successfully!', 'success');
+        showToast('Pool settled successfully!', 'success');
         onSuccess?.();
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to claim winnings';
-        setClaimTransactions((prev) =>
+        const message = error instanceof Error ? error.message : 'Failed to settle pool';
+        setSettleTransactions((prev) =>
           new Map(prev).set(poolId, { status: 'failed', error: message })
         );
         if (message !== 'Transaction cancelled by user') {
           showToast(message, 'error');
         } else {
-          showToast('Claim transaction cancelled', 'info');
+          showToast('Settle transaction cancelled', 'info');
         }
       } finally {
         setStage('idle');
         setFeePrompt(null);
       }
     },
-    [showToast, userAddress, wallet]
+    [showToast, wallet]
   );
 
-  return { claimTransactions, claim, feePrompt, setFeePrompt, stage, setStage };
+  return { settleTransactions, settle, feePrompt, setFeePrompt, stage, setStage };
 }
