@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Shield } from 'lucide-react';
 import { ICON_CLASS } from '../lib/constants';
+import { exportRecords } from '../lib/export';
 
 interface Transaction {
   id: string;
@@ -102,12 +103,40 @@ export default function TransactionsPage() {
     }
   };
 
+  const transactionExportRows = filteredTransactions.map((tx) => ({
+    id: tx.id,
+    type: tx.type,
+    description: tx.description,
+    amount: tx.amount,
+    date: tx.date.toISOString(),
+    status: tx.status,
+    hash: tx.hash ?? '',
+  }));
+
   return (
     <main className="min-h-screen pt-24 pb-16 px-4">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
           <h1 className="text-4xl font-bold mb-2">Transaction History</h1>
           <p className="text-muted-foreground">View all your pool creations, bets, settlements, and payouts</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => exportRecords(transactionExportRows, 'predinex-transactions', 'csv')}
+              className="rounded-xl border border-border bg-card/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-card"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => exportRecords(transactionExportRows, 'predinex-transactions', 'json')}
+              className="rounded-xl border border-border bg-card/40 px-4 py-3 text-sm font-semibold transition-colors hover:bg-card"
+            >
+              Export JSON
+            </button>
+          </div>
         </div>
 
         {/* Filters */}

@@ -6,6 +6,7 @@ import { predinexContract } from '../adapters/predinex-contract';
 import { invalidateOnClaimWinnings } from '../cache-invalidation';
 import { useWallet } from '../../components/WalletAdapterProvider';
 import { TxStage } from '../soroban-transaction-service';
+import { notifyBrowserEvent } from '../notifications';
 
 export type ClaimTxStatus = 'pending' | 'success' | 'failed';
 
@@ -47,6 +48,10 @@ export function useClaimWinnings(userAddress?: string | null) {
         setClaimTransactions((prev) =>
           new Map(prev).set(poolId, { status: 'success', txId: txHash })
         );
+        notifyBrowserEvent('Claim submitted', {
+          body: `Winnings claim for pool #${poolId} is being processed.`,
+          tag: `predinex-claim-${poolId}`,
+        });
         showToast('Claim submitted successfully!', 'success');
         onSuccess?.();
       } catch (error) {

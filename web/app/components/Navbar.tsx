@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LogOut, Menu, X, Wallet, Moon, Sun } from "lucide-react";
 import { useWallet } from './WalletAdapterProvider';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../lib/i18n';
 import { ICON_CLASS } from "../lib/constants";
 import { WalletAddressCopyButton } from "../../components/WalletAddressCopyButton";
 import { NetworkMismatchWarning } from './NetworkMismatchWarning';
@@ -12,6 +13,7 @@ import { NetworkMismatchWarning } from './NetworkMismatchWarning';
 export default function Navbar() {
     const { isConnected, address, connect, disconnect } = useWallet();
     const { theme, toggleTheme } = useTheme();
+    const { t } = useI18n();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     return (
@@ -21,39 +23,42 @@ export default function Navbar() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         {/* Logo */}
-                        <Link href="/" className="flex items-center gap-2 group" aria-label="Predinex Home">
-                            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <span className="font-bold text-white">P</span>
+                            <Link href="/" className="flex items-center gap-2 group" aria-label="Predinex Home">
+                                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <span className="font-bold text-white">P</span>
+                                </div>
+                                <span className="font-bold text-xl tracking-tight text-gradient">Predinex</span>
+                            </Link>
+                            {/* Navigation Links - Desktop */}
+                            <div className="hidden md:flex items-center gap-6" aria-label="Desktop navigation">
+                                <Link href="/markets" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="View all markets">
+                                {t('nav.markets')}
+                                </Link>
+                                <Link href="/create" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="Create a new prediction market">
+                                {t('nav.create')}
+                                </Link>
+                                {isConnected && (
+                                    <Link href="/transactions" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="View transaction history">
+                                    {t('nav.transactions')}
+                                    </Link>
+                                )}
+                                {isConnected && (
+                                    <Link href="/activity" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="View activity feed">
+                                    {t('nav.activity')}
+                                    </Link>
+                                )}
+                                {isConnected && (
+                                    <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="User dashboard">
+                                    {t('nav.dashboard')}
+                                    </Link>
+                                )}
+                                <Link href="/analytics" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="Platform analytics">
+                                {t('nav.analytics')}
+                                </Link>
+                                <Link href="/settings" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="Open settings">
+                                {t('nav.settings')}
+                                </Link>
                             </div>
-                            <span className="font-bold text-xl tracking-tight text-gradient">Predinex</span>
-                        </Link>
-                        {/* Navigation Links - Desktop */}
-                        <div className="hidden md:flex items-center gap-6" aria-label="Desktop navigation">
-                            <Link href="/markets" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="View all markets">
-                                Markets
-                            </Link>
-                            <Link href="/create" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="Create a new prediction market">
-                                Create
-                            </Link>
-                            {isConnected && (
-                                <Link href="/transactions" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="View transaction history">
-                                    Transactions
-                                </Link>
-                            )}
-                            {isConnected && (
-                                <Link href="/activity" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="View activity feed">
-                                    Activity
-                                </Link>
-                            )}
-                            {isConnected && (
-                                <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="User dashboard">
-                                    Dashboard
-                                </Link>
-                            )}
-                            <Link href="/analytics" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="Platform analytics">
-                                Analytics
-                            </Link>
-                        </div>
 
                     {/* User Info & Connect Button - Desktop */}
                     <div className="hidden md:flex items-center gap-4">
@@ -72,7 +77,7 @@ export default function Navbar() {
                                     onClick={disconnect}
                                     className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-full border border-red-500/20 transition-all hover:scale-110 active:scale-95"
                                     aria-label="Sign out"
-                                    title="Sign out"
+                                    title={t('nav.signOut')}
                                 >
                                     <LogOut className={ICON_CLASS.sm} />
                                 </button>
@@ -82,7 +87,7 @@ export default function Navbar() {
                             <button
                                 onClick={connect}
                                 className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-full border border-primary/20 transition-colors font-medium text-sm"
-                                aria-label="Connect wallet"
+                                aria-label={t('nav.connectWallet')}
                             >
                                 <Wallet className={ICON_CLASS.sm + " text-primary"} />
                             </button>
@@ -117,14 +122,14 @@ export default function Navbar() {
                                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                Markets
+                                {t('nav.markets')}
                             </Link>
                             <Link
                                 href="/create"
                                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                Create
+                                {t('nav.create')}
                             </Link>
                             {isConnected && (
                                 <Link
@@ -132,7 +137,7 @@ export default function Navbar() {
                                     className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
                                     onClick={() => setIsMenuOpen(false)}
                                 >
-                                    Transactions
+                                    {t('nav.transactions')}
                                 </Link>
                             )}
                             {isConnected && (
@@ -141,7 +146,7 @@ export default function Navbar() {
                                     className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
                                     onClick={() => setIsMenuOpen(false)}
                                 >
-                                    Activity
+                                    {t('nav.activity')}
                                 </Link>
                             )}
                             {isConnected && (
@@ -151,7 +156,14 @@ export default function Navbar() {
                                         className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
                                         onClick={() => setIsMenuOpen(false)}
                                     >
-                                        Dashboard
+                                        {t('nav.dashboard')}
+                                    </Link>
+                                    <Link
+                                        href="/settings"
+                                        className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        {t('nav.settings')}
                                     </Link>
                                     <button
                                         onClick={() => {
@@ -160,7 +172,7 @@ export default function Navbar() {
                                         }}
                                         className="w-full text-left px-3 py-2 text-base font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                                     >
-                                        Sign Out
+                                        {t('nav.signOut')}
                                     </button>
                                 </>
                             )}
@@ -169,7 +181,7 @@ export default function Navbar() {
                                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                Analytics
+                                {t('nav.analytics')}
                             </Link>
                         </div>
                     </div>

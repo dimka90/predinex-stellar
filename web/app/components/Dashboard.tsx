@@ -6,6 +6,7 @@ import { useWallet } from './WalletAdapterProvider';
 import { useWalletConnect } from '../lib/hooks/useWalletConnect';
 import { useUserDashboard } from '../lib/user-dashboard/useUserDashboard';
 import type { DashboardTabId } from '../lib/user-dashboard/types';
+import { useI18n } from '../lib/i18n';
 import { DashboardConnectPrompt } from './user-dashboard/DashboardConnectPrompt';
 import { DashboardHeader } from './user-dashboard/DashboardHeader';
 import { DashboardStatsSections } from './user-dashboard/DashboardStatsSections';
@@ -34,6 +35,7 @@ const IncentivesDisplay = dynamic(() => import('./IncentivesDisplay'), {
 export default function Dashboard() {
   const { isConnected, address } = useWallet();
   const { session } = useWalletConnect();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<DashboardTabId>('overview');
 
   const sessionConnected = !!session?.isConnected;
@@ -61,7 +63,7 @@ export default function Dashboard() {
           disabled={isLoading}
           className="flex-1 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold rounded-xl transition-all disabled:opacity-50"
         >
-          {isLoading ? 'Refreshing...' : 'Refresh Data'}
+          {isLoading ? t('dashboard.refreshing') : t('dashboard.refresh')}
         </button>
       </div>
 
