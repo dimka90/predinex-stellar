@@ -3,6 +3,8 @@ extern crate alloc;
 use alloc::vec;
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, String, Symbol, Vec};
 
+mod fuzz_tests;
+mod multi_user_tests;
 mod pause_tests;
 mod protocol_fee_tests;
 mod test;
