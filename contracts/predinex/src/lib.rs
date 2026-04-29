@@ -682,7 +682,11 @@ impl PredinexContract {
         );
 
         env.events().publish(
-            (Symbol::new(&env, "pool_bet_limits_set"), event_version(&env), pool_id),
+            (
+                Symbol::new(&env, "pool_bet_limits_set"),
+                event_version(&env),
+                pool_id,
+            ),
             (min_bet, max_bet),
         );
         Ok(())
@@ -721,7 +725,9 @@ impl PredinexContract {
             return Err(ContractError::InvalidBetAmount);
         }
 
-        env.storage().persistent().set(&DataKey::MaxPoolSize, &max_pool_size);
+        env.storage()
+            .persistent()
+            .set(&DataKey::MaxPoolSize, &max_pool_size);
         env.storage()
             .persistent()
             .set(&DataKey::LargePoolThreshold, &large_pool_threshold);
@@ -730,7 +736,10 @@ impl PredinexContract {
             .set(&DataKey::LargePoolCoolingPeriodSecs, &cooling_period_secs);
 
         env.events().publish(
-            (Symbol::new(&env, "circuit_breaker_config_set"), event_version(&env)),
+            (
+                Symbol::new(&env, "circuit_breaker_config_set"),
+                event_version(&env),
+            ),
             (max_pool_size, large_pool_threshold, cooling_period_secs),
         );
         Ok(())
@@ -791,7 +800,10 @@ impl PredinexContract {
             .set(&DataKey::RateLimitWindowSecs, &window_secs);
 
         env.events().publish(
-            (Symbol::new(&env, "rate_limit_config_set"), event_version(&env)),
+            (
+                Symbol::new(&env, "rate_limit_config_set"),
+                event_version(&env),
+            ),
             (max_bets_per_window, window_secs),
         );
         Ok(())
@@ -825,13 +837,12 @@ impl PredinexContract {
                 window_start: now,
                 used: 0,
             });
-        let (window_start, used) = if cfg.window_secs > 0
-            && now.saturating_sub(state.window_start) >= cfg.window_secs
-        {
-            (now, 0u32)
-        } else {
-            (state.window_start, state.used)
-        };
+        let (window_start, used) =
+            if cfg.window_secs > 0 && now.saturating_sub(state.window_start) >= cfg.window_secs {
+                (now, 0u32)
+            } else {
+                (state.window_start, state.used)
+            };
         let remaining = cfg.max_bets_per_window.saturating_sub(used);
 
         WalletRateLimitStatus {
@@ -926,7 +937,11 @@ impl PredinexContract {
     }
 
     /// Validate that a string is not empty or whitespace-only.
-    fn validate_non_empty_string(s: &String, empty_err: ContractError, ws_err: ContractError) -> Result<(), ContractError> {
+    fn validate_non_empty_string(
+        s: &String,
+        empty_err: ContractError,
+        ws_err: ContractError,
+    ) -> Result<(), ContractError> {
         let len = s.len() as usize;
         if len == 0 {
             return Err(empty_err);
@@ -962,18 +977,34 @@ impl PredinexContract {
     ) -> Result<u32, ContractError> {
         creator.require_auth();
 
-        Self::validate_non_empty_string(&title, ContractError::TitleEmpty, ContractError::StringWhitespaceOnly)?;
+        Self::validate_non_empty_string(
+            &title,
+            ContractError::TitleEmpty,
+            ContractError::StringWhitespaceOnly,
+        )?;
         if title.len() > MAX_TITLE_LENGTH {
             return Err(ContractError::TitleTooLong);
         }
 
-        Self::validate_non_empty_string(&description, ContractError::DescriptionEmpty, ContractError::StringWhitespaceOnly)?;
+        Self::validate_non_empty_string(
+            &description,
+            ContractError::DescriptionEmpty,
+            ContractError::StringWhitespaceOnly,
+        )?;
         if description.len() > MAX_DESCRIPTION_LENGTH {
             return Err(ContractError::DescriptionTooLong);
         }
 
-        Self::validate_non_empty_string(&outcome_a, ContractError::OutcomeEmpty, ContractError::StringWhitespaceOnly)?;
-        Self::validate_non_empty_string(&outcome_b, ContractError::OutcomeEmpty, ContractError::StringWhitespaceOnly)?;
+        Self::validate_non_empty_string(
+            &outcome_a,
+            ContractError::OutcomeEmpty,
+            ContractError::StringWhitespaceOnly,
+        )?;
+        Self::validate_non_empty_string(
+            &outcome_b,
+            ContractError::OutcomeEmpty,
+            ContractError::StringWhitespaceOnly,
+        )?;
         if outcome_a.len() > MAX_OUTCOME_LENGTH || outcome_b.len() > MAX_OUTCOME_LENGTH {
             return Err(ContractError::OutcomeTooLong);
         }
@@ -1293,6 +1324,7 @@ impl PredinexContract {
             .unwrap_or(DEFAULT_LARGE_POOL_COOLING_PERIOD_SECS);
         if large_pool_threshold > 0
             && cooling_period_secs > 0
+            && current_total < large_pool_threshold
             && new_total >= large_pool_threshold
             && pool.status == PoolStatus::Open
         {
@@ -1302,7 +1334,9 @@ impl PredinexContract {
                 .checked_add(cooling_period_secs)
                 .ok_or(ContractError::ExpiryOverflow)?;
             pool.status = PoolStatus::Frozen;
-            env.storage().persistent().set(&DataKey::Pool(pool_id), &pool);
+            env.storage()
+                .persistent()
+                .set(&DataKey::Pool(pool_id), &pool);
             env.storage().persistent().extend_ttl(
                 &DataKey::Pool(pool_id),
                 POOL_BUMP_THRESHOLD,
@@ -1336,12 +1370,6 @@ impl PredinexContract {
     /// settled, voided, or bet into afterward. A `cancel_pool` event is emitted
     /// so indexers and the UI can update their state immediately.
     pub fn cancel_pool(env: Env, creator: Address, pool_id: u32) -> Result<(), ContractError> {
-    /// Only the pool creator may call this, and only while the pool is still open.
-    /// Once cancelled the pool transitions to the `Cancelled` terminal state; it cannot be
-    /// settled, voided, or bet into afterward. Participants can claim refunds of their
-    /// original bet amounts. A `cancel_pool` event is emitted so indexers and the UI
-    /// can update their state immediately.
-    pub fn cancel_pool(env: Env, creator: Address, pool_id: u32) {
         creator.require_auth();
 
         let mut pool = env
@@ -1356,10 +1384,6 @@ impl PredinexContract {
 
         if pool.status != PoolStatus::Open {
             return Err(ContractError::PoolNotOpen);
-        }
-
-        if pool.total_a > 0 || pool.total_b > 0 {
-            return Err(ContractError::PoolHasBets);
         }
 
         pool.status = PoolStatus::Cancelled;
@@ -1381,6 +1405,7 @@ impl PredinexContract {
             ),
             creator,
         );
+
         Ok(())
     }
 
@@ -1448,7 +1473,11 @@ impl PredinexContract {
         // can record it on-chain and in the event without a second read.
         let source = if caller == pool.creator {
             SettlementSource::Creator
-        } else if delegated_settler.as_ref().map(|s| s == &caller).unwrap_or(false) {
+        } else if delegated_settler
+            .as_ref()
+            .map(|s| s == &caller)
+            .unwrap_or(false)
+        {
             SettlementSource::Operator
         } else {
             return Err(ContractError::Unauthorized);
@@ -1588,10 +1617,9 @@ impl PredinexContract {
             .get::<_, Pool>(&DataKey::Pool(pool_id))
             .ok_or(ContractError::PoolNotFound)?;
 
-        if pool.status != PoolStatus::Voided {
-            return Err(ContractError::PoolNotSettled);
+        // Refunds are allowed only for voided or cancelled pools.
         if pool.status != PoolStatus::Voided && pool.status != PoolStatus::Cancelled {
-            panic!("Pool not voided or cancelled");
+            return Err(ContractError::PoolNotSettled);
         }
 
         let user_bet = env
@@ -1836,16 +1864,16 @@ impl PredinexContract {
         let token_client = token::Client::new(&env, &token_address);
 
         let mut results = Vec::new(&env);
-        let cap = if pool_ids.len() > 20 { 20 } else { pool_ids.len() };
+        let cap = if pool_ids.len() > 20 {
+            20
+        } else {
+            pool_ids.len()
+        };
 
         for i in 0..cap {
             let pool_id = pool_ids.get(i).unwrap();
 
-            let pool: Pool = match env
-                .storage()
-                .persistent()
-                .get(&DataKey::Pool(pool_id))
-            {
+            let pool: Pool = match env.storage().persistent().get(&DataKey::Pool(pool_id)) {
                 Some(p) => p,
                 None => continue,
             };
@@ -1951,11 +1979,7 @@ impl PredinexContract {
                 .remove(&DataKey::UserBet(pool_id, user.clone()));
 
             env.events().publish(
-                (
-                    Symbol::new(&env, "claim_winnings"),
-                    pool_id,
-                    user.clone(),
-                ),
+                (Symbol::new(&env, "claim_winnings"), pool_id, user.clone()),
                 ClaimEvent {
                     amount: winnings,
                     fee_amount: fee,
@@ -1964,7 +1988,10 @@ impl PredinexContract {
                 },
             );
 
-            results.push_back(ClaimAllEntry { pool_id, amount: winnings });
+            results.push_back(ClaimAllEntry {
+                pool_id,
+                amount: winnings,
+            });
         }
 
         Ok(results)
@@ -2331,9 +2358,7 @@ impl PredinexContract {
     /// When min/max were never explicitly set by the admin, returns defaults.
     pub fn get_pool_bet_limits(env: Env, pool_id: u32) -> Option<PoolBetLimits> {
         let pool_exists: Option<Pool> = env.storage().persistent().get(&DataKey::Pool(pool_id));
-        if pool_exists.is_none() {
-            return None;
-        }
+        pool_exists.as_ref()?;
 
         let min_bet: i128 = env
             .storage()
@@ -2349,14 +2374,22 @@ impl PredinexContract {
         // Keep bet limit entries alive while the pool is being queried.
         // Note: legacy pools may not have explicit entries set yet, so guard
         // against missing keys.
-        if env.storage().persistent().has(&DataKey::PoolMinBet(pool_id)) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::PoolMinBet(pool_id))
+        {
             env.storage().persistent().extend_ttl(
                 &DataKey::PoolMinBet(pool_id),
                 POOL_BUMP_THRESHOLD,
                 POOL_BUMP_TARGET,
             );
         }
-        if env.storage().persistent().has(&DataKey::PoolMaxBet(pool_id)) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::PoolMaxBet(pool_id))
+        {
             env.storage().persistent().extend_ttl(
                 &DataKey::PoolMaxBet(pool_id),
                 POOL_BUMP_THRESHOLD,

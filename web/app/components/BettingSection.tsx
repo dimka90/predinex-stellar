@@ -41,6 +41,8 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
     // Derived directly from connection state — no effect needed for this mock value
     const walletBalance: number | null = isConnected ? 100.0 : null;
 
+    const { isMismatch, expectedNetworkName } = useNetworkMismatch();
+
     const placeBet = async (outcome: number) => {
         if (!isConnected) {
             connect();

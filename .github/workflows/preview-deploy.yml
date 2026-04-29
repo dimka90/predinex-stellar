@@ -19,7 +19,9 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   deploy-preview:
     name: Deploy Preview to Vercel
-    if: github.event.action != 'closed'
+    # On fork PRs, Vercel secrets are not available, which would otherwise
+    # cause the job to fail. Skip the deployment instead of failing CI.
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write   # PR metadata access

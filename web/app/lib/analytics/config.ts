@@ -3,6 +3,8 @@
  * Contains constants, thresholds, and configuration for the analytics system
  */
 
+import { CONTRACT_ADDRESS as STACKS_CONTRACT_ADDRESS, CONTRACT_NAME as STACKS_CONTRACT_NAME } from '../constants';
+
 export const ANALYTICS_CONFIG = {
   // Performance thresholds
   API_RESPONSE_TIMEOUT: 2000, // 2 seconds
@@ -121,15 +123,18 @@ export const ANALYTICS_CONFIG = {
 // Contract addresses and network configuration
 export const NETWORK_CONFIG = {
   MAINNET: {
-    CONTRACT_ADDRESS: 'CA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUWDA',
+    // Stacks contract principal + name in `<address>.<name>` form.
+    CONTRACT_ADDRESS: `${STACKS_CONTRACT_ADDRESS}.${STACKS_CONTRACT_NAME}`,
     NETWORK_URL: 'https://soroban-testnet.stellar.org',
   },
   TESTNET: {
-    CONTRACT_ADDRESS: 'CA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUWDA',
+    // Stacks contract principal + name in `<address>.<name>` form.
+    CONTRACT_ADDRESS: `${STACKS_CONTRACT_ADDRESS}.${STACKS_CONTRACT_NAME}`,
     NETWORK_URL: 'https://soroban-testnet.stellar.org',
   },
   DEVNET: {
-    CONTRACT_ADDRESS: 'CA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJUWDA',
+    // Stacks contract principal + name in `<address>.<name>` form.
+    CONTRACT_ADDRESS: `${STACKS_CONTRACT_ADDRESS}.${STACKS_CONTRACT_NAME}`,
     NETWORK_URL: 'http://localhost:8000',
   },
 } as const;

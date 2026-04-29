@@ -2242,9 +2242,7 @@ fn i1_cancel_pool_before_bets_succeeds() {
 
 /// I2: Creator can cancel a pool after bets have been placed.
 #[test]
-#[should_panic]
-fn i2_cancel_pool_after_first_bet_rejected() {
-fn i2_cancel_pool_after_bets_succeeds() {
+fn i2_cancel_pool_after_first_bet_succeeds() {
     let t = setup();
     let pool_id = make_pool(&t);
 
@@ -2255,11 +2253,7 @@ fn i2_cancel_pool_after_bets_succeeds() {
         .client
         .get_pool(&pool_id)
         .expect("pool must still exist after cancel");
-    assert_eq!(
-        pool_after.status,
-        PoolStatus::Cancelled,
-        "status must be Cancelled after creator cancels"
-    );
+    assert_eq!(pool_after.status, PoolStatus::Cancelled);
 }
 
 /// I3: A non-creator cannot cancel the pool.
@@ -2915,8 +2909,7 @@ fn test_create_pool_max_lengths_accepted() {
 #[should_panic]
 fn test_circuit_breaker_rejects_bets_above_max_pool_size() {
     let t = setup();
-    t.client
-        .set_circuit_breaker_config(&t.admin, &200, &0, &0);
+    t.client.set_circuit_breaker_config(&t.admin, &200, &0, &0);
 
     let user_a = Address::generate(&t.env);
     let user_b = Address::generate(&t.env);
@@ -2969,11 +2962,17 @@ fn test_circuit_breaker_admin_override_unfreezes_pool() {
     let pool_id = make_pool(&t);
     t.client.place_bet(&user_a, &pool_id, &0, &150);
     t.client.place_bet(&user_b, &pool_id, &1, &50);
-    assert_eq!(t.client.get_pool(&pool_id).unwrap().status, PoolStatus::Frozen);
+    assert_eq!(
+        t.client.get_pool(&pool_id).unwrap().status,
+        PoolStatus::Frozen
+    );
 
     t.client.override_pool_cooling(&t.admin, &pool_id);
     t.client.place_bet(&user_a, &pool_id, &0, &10);
-    assert_eq!(t.client.get_pool(&pool_id).unwrap().status, PoolStatus::Open);
+    assert_eq!(
+        t.client.get_pool(&pool_id).unwrap().status,
+        PoolStatus::Open
+    );
 }
 
 #[test]

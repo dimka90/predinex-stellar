@@ -19,9 +19,8 @@ const MOCK_MARKET: ProcessedMarket = {
   oddsB: 33,
   timeRemaining: 86400 * 10,
   status: 'active',
-  totalA: 1000000000,
-  totalB: 500000000,
-  settled: false,
+  createdAt: Math.floor(Date.now() / 1000) - 86400,
+  settledAt: null,
 };
 
 const MOCK_ACTIVITIES = [
@@ -72,11 +71,24 @@ export default function VisualRegressionPage() {
           </div>
           <div id="market-card-settled">
             <p className="text-xs mb-2 opacity-50">Settled State</p>
-            <MarketCard market={{ ...MOCK_MARKET, status: 'settled', settled: true, winningOutcome: 0 }} />
+            <MarketCard
+              market={{
+                ...MOCK_MARKET,
+                status: 'settled',
+                timeRemaining: null,
+                settledAt: Math.floor(Date.now() / 1000) - 3600,
+              }}
+            />
           </div>
           <div id="market-card-expired">
             <p className="text-xs mb-2 opacity-50">Expired State</p>
-            <MarketCard market={{ ...MOCK_MARKET, status: 'expired', timeRemaining: 0 }} />
+            <MarketCard
+              market={{
+                ...MOCK_MARKET,
+                status: 'expired',
+                timeRemaining: null,
+              }}
+            />
           </div>
         </div>
       </section>

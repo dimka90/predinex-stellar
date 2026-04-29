@@ -54,7 +54,7 @@ struct FuzzEnv<'a> {
     env: Env,
     client: PredinexContractClient<'a>,
     token: Address,
-    contract_id: Address,
+    _contract_id: Address,
 }
 
 fn setup_fuzz() -> FuzzEnv<'static> {
@@ -75,7 +75,7 @@ fn setup_fuzz() -> FuzzEnv<'static> {
         env,
         client,
         token: token_id.address(),
-        contract_id,
+        _contract_id: contract_id,
     }
 }
 

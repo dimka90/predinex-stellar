@@ -2,6 +2,7 @@ import React from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../../providers/ToastProvider';
+import { ThemeProvider } from '../../app/context/ThemeContext';
 
 export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   withQueryClient?: boolean;
@@ -11,7 +12,11 @@ function buildWrapper(options: RenderWithProvidersOptions = {}) {
   const { withQueryClient = false } = options;
 
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    let tree = <ToastProvider>{children}</ToastProvider>;
+    let tree = (
+      <ThemeProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </ThemeProvider>
+    );
 
     if (withQueryClient) {
       const queryClient = new QueryClient({

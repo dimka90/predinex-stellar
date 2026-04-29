@@ -81,13 +81,13 @@ describe('Navbar — mobile viewport', () => {
   afterEach(() => setViewport(DESKTOP_WIDTH));
 
   it('renders the hamburger menu button', () => {
-    render(<Navbar />);
+    renderWithProviders(<Navbar />);
     expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
   });
 
   it('opens the mobile menu when the hamburger is clicked', async () => {
     const user = userEvent.setup();
-    render(<Navbar />);
+    renderWithProviders(<Navbar />);
 
     const toggle = screen.getByRole('button', { name: /open menu/i });
     await user.click(toggle);
@@ -102,7 +102,7 @@ describe('Navbar — mobile viewport', () => {
 
   it('closes the mobile menu when the hamburger is clicked again', async () => {
     const user = userEvent.setup();
-    render(<Navbar />);
+    renderWithProviders(<Navbar />);
 
     const toggle = screen.getByRole('button', { name: /open menu/i });
     await user.click(toggle);
@@ -112,13 +112,13 @@ describe('Navbar — mobile viewport', () => {
   });
 
   it('renders the logo link at mobile size', () => {
-    render(<Navbar />);
+    renderWithProviders(<Navbar />);
     expect(screen.getByRole('link', { name: /predinex home/i })).toBeInTheDocument();
   });
 
   it('shows connect wallet button in mobile menu', async () => {
     const user = userEvent.setup();
-    render(<Navbar />);
+    renderWithProviders(<Navbar />);
     await user.click(screen.getByRole('button', { name: /open menu/i }));
     // Connect button is in the desktop bar; mobile menu has nav links
     // Verify the nav element is present and accessible

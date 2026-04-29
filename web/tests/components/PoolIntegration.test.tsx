@@ -170,9 +170,11 @@ describe('PoolIntegration', () => {
       expect(screen.getByText('Test Pool')).toBeInTheDocument();
     });
 
-    const placeBetButton = screen.getByRole('button', { name: /Place Bet/i });
-    expect(placeBetButton).not.toBeDisabled();
-    expect(screen.queryByText(/Please switch to Stellar Testnet to interact/i)).not.toBeInTheDocument();
+    // When the wallet is connected but on the wrong network, the action remains
+    // present but is disabled and shows the mismatch guidance.
+    const actionButton = screen.getByRole('button', { name: /wrong network/i });
+    expect(actionButton).toBeDisabled();
+    expect(screen.getByText(/Please switch to Stellar Testnet to interact/i)).toBeInTheDocument();
   });
 
   it('enables Place Bet button when wallet is connected and network matches', async () => {

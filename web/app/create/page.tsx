@@ -50,7 +50,9 @@ export default function CreateMarket() {
     const [txId, setTxId] = useState<string | null>(null);
     const [feePrompt, setFeePrompt] = useState<{ feeStroops: string, resolve: (v: boolean) => void } | null>(null);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    ) => {
         const { name, value } = e.target;
         setDraft((prev) => ({ ...prev, [name]: value }));
         if (errors[name as keyof CreateMarketDraft]) {
