@@ -43,6 +43,9 @@ export default function Navbar() {
                                     Dashboard
                                 </Link>
                             )}
+                            <Link href="/analytics" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors" aria-label="Platform analytics">
+                                Analytics
+                            </Link>
                         </div>
 
                     {/* User Info & Connect Button - Desktop */}
@@ -137,6 +140,13 @@ export default function Navbar() {
                                     </button>
                                 </>
                             )}
+                            <Link
+                                href="/analytics"
+                                className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors"
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                Analytics
+                            </Link>
                         </div>
                     </div>
                 )}
