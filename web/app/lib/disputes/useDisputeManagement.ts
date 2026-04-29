@@ -5,6 +5,7 @@ import { useDisputes } from '../hooks/useDisputes';
 import type { Dispute, DisputeVote, DisputeTabId } from './types';
 import { fetchDisputesFromContract } from './fetchDisputesFromContract';
 import { getMockDisputes } from './mockDisputes';
+import { isDisputeMockDataEnabled } from '../feature-flags';
 
 export function useDisputeManagement(userAddress: string | null | undefined) {
   const { addVote } = useDisputes();
@@ -27,11 +28,14 @@ export function useDisputeManagement(userAddress: string | null | undefined) {
         const fetchedDisputes = await fetchDisputesFromContract();
         if (fetchedDisputes.length > 0) {
           setDisputes(fetchedDisputes);
-        } else {
+        } else if (isDisputeMockDataEnabled()) {
           setDisputes(getMockDisputes());
+        } else {
+          setDisputes([]);
         }
       } catch (error) {
         console.error('Error loading disputes:', error);
+        setDisputes([]);
       } finally {
         setIsLoading(false);
       }
