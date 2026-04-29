@@ -34,6 +34,10 @@ This directory contains reusable utilities, hooks, and configurations for the Pr
   - Feature flags
   - Error and success messages
 
+- **feature-flags.ts** - Public feature flag helpers
+  - Oracle-management placeholder opt-in
+  - Default-disabled parsing for production-facing placeholder surfaces
+
 - **logger.ts** - Centralized logging
   - Multiple log levels
   - Context-based logging
@@ -170,6 +174,8 @@ const [user, setUser, removeUser] = useLocalStorage('user', null);
 4. **Scoped loggers** - Create scoped loggers for each component/module
 5. **Cache strategically** - Use appropriate TTL values for different data types
 6. **Validate early** - Validate user input before sending to contract
+
+To find oracle-management feature flag parsing visit [feature-flags.ts](file:///C:/Stellar%20Contributions/predinex-stellar/web/app/lib/feature-flags.ts).
 
 ## Adding New Utilities
 
