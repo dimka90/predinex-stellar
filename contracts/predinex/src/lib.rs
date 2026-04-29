@@ -682,7 +682,11 @@ impl PredinexContract {
         );
 
         env.events().publish(
-            (Symbol::new(&env, "pool_bet_limits_set"), event_version(&env), pool_id),
+            (
+                Symbol::new(&env, "pool_bet_limits_set"),
+                event_version(&env),
+                pool_id,
+            ),
             (min_bet, max_bet),
         );
         Ok(())
@@ -721,7 +725,9 @@ impl PredinexContract {
             return Err(ContractError::InvalidBetAmount);
         }
 
-        env.storage().persistent().set(&DataKey::MaxPoolSize, &max_pool_size);
+        env.storage()
+            .persistent()
+            .set(&DataKey::MaxPoolSize, &max_pool_size);
         env.storage()
             .persistent()
             .set(&DataKey::LargePoolThreshold, &large_pool_threshold);
@@ -730,7 +736,10 @@ impl PredinexContract {
             .set(&DataKey::LargePoolCoolingPeriodSecs, &cooling_period_secs);
 
         env.events().publish(
-            (Symbol::new(&env, "circuit_breaker_config_set"), event_version(&env)),
+            (
+                Symbol::new(&env, "circuit_breaker_config_set"),
+                event_version(&env),
+            ),
             (max_pool_size, large_pool_threshold, cooling_period_secs),
         );
         Ok(())
@@ -791,7 +800,10 @@ impl PredinexContract {
             .set(&DataKey::RateLimitWindowSecs, &window_secs);
 
         env.events().publish(
-            (Symbol::new(&env, "rate_limit_config_set"), event_version(&env)),
+            (
+                Symbol::new(&env, "rate_limit_config_set"),
+                event_version(&env),
+            ),
             (max_bets_per_window, window_secs),
         );
         Ok(())
@@ -825,13 +837,12 @@ impl PredinexContract {
                 window_start: now,
                 used: 0,
             });
-        let (window_start, used) = if cfg.window_secs > 0
-            && now.saturating_sub(state.window_start) >= cfg.window_secs
-        {
-            (now, 0u32)
-        } else {
-            (state.window_start, state.used)
-        };
+        let (window_start, used) =
+            if cfg.window_secs > 0 && now.saturating_sub(state.window_start) >= cfg.window_secs {
+                (now, 0u32)
+            } else {
+                (state.window_start, state.used)
+            };
         let remaining = cfg.max_bets_per_window.saturating_sub(used);
 
         WalletRateLimitStatus {
@@ -1313,6 +1324,7 @@ impl PredinexContract {
             .unwrap_or(DEFAULT_LARGE_POOL_COOLING_PERIOD_SECS);
         if large_pool_threshold > 0
             && cooling_period_secs > 0
+            && current_total < large_pool_threshold
             && new_total >= large_pool_threshold
             && pool.status == PoolStatus::Open
         {
@@ -1322,7 +1334,9 @@ impl PredinexContract {
                 .checked_add(cooling_period_secs)
                 .ok_or(ContractError::ExpiryOverflow)?;
             pool.status = PoolStatus::Frozen;
-            env.storage().persistent().set(&DataKey::Pool(pool_id), &pool);
+            env.storage()
+                .persistent()
+                .set(&DataKey::Pool(pool_id), &pool);
             env.storage().persistent().extend_ttl(
                 &DataKey::Pool(pool_id),
                 POOL_BUMP_THRESHOLD,
@@ -2344,9 +2358,7 @@ impl PredinexContract {
     /// When min/max were never explicitly set by the admin, returns defaults.
     pub fn get_pool_bet_limits(env: Env, pool_id: u32) -> Option<PoolBetLimits> {
         let pool_exists: Option<Pool> = env.storage().persistent().get(&DataKey::Pool(pool_id));
-        if pool_exists.is_none() {
-            return None;
-        }
+        pool_exists.as_ref()?;
 
         let min_bet: i128 = env
             .storage()
@@ -2362,14 +2374,22 @@ impl PredinexContract {
         // Keep bet limit entries alive while the pool is being queried.
         // Note: legacy pools may not have explicit entries set yet, so guard
         // against missing keys.
-        if env.storage().persistent().has(&DataKey::PoolMinBet(pool_id)) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::PoolMinBet(pool_id))
+        {
             env.storage().persistent().extend_ttl(
                 &DataKey::PoolMinBet(pool_id),
                 POOL_BUMP_THRESHOLD,
                 POOL_BUMP_TARGET,
             );
         }
-        if env.storage().persistent().has(&DataKey::PoolMaxBet(pool_id)) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::PoolMaxBet(pool_id))
+        {
             env.storage().persistent().extend_ttl(
                 &DataKey::PoolMaxBet(pool_id),
                 POOL_BUMP_THRESHOLD,

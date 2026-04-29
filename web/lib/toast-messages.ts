@@ -15,9 +15,6 @@ const formatTokenAmount = (amount: number): string => {
   return normalized.toString();
 };
 
-// Backwards-compatible alias used by unit tests and older UI copy.
-export const MIN_BET_STX = MIN_BET_XLM;
-
 export type ToastPayload = { message: string; type: ToastType };
 
 /**

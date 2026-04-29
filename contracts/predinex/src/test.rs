@@ -2909,8 +2909,7 @@ fn test_create_pool_max_lengths_accepted() {
 #[should_panic]
 fn test_circuit_breaker_rejects_bets_above_max_pool_size() {
     let t = setup();
-    t.client
-        .set_circuit_breaker_config(&t.admin, &200, &0, &0);
+    t.client.set_circuit_breaker_config(&t.admin, &200, &0, &0);
 
     let user_a = Address::generate(&t.env);
     let user_b = Address::generate(&t.env);
@@ -2963,11 +2962,17 @@ fn test_circuit_breaker_admin_override_unfreezes_pool() {
     let pool_id = make_pool(&t);
     t.client.place_bet(&user_a, &pool_id, &0, &150);
     t.client.place_bet(&user_b, &pool_id, &1, &50);
-    assert_eq!(t.client.get_pool(&pool_id).unwrap().status, PoolStatus::Frozen);
+    assert_eq!(
+        t.client.get_pool(&pool_id).unwrap().status,
+        PoolStatus::Frozen
+    );
 
     t.client.override_pool_cooling(&t.admin, &pool_id);
     t.client.place_bet(&user_a, &pool_id, &0, &10);
-    assert_eq!(t.client.get_pool(&pool_id).unwrap().status, PoolStatus::Open);
+    assert_eq!(
+        t.client.get_pool(&pool_id).unwrap().status,
+        PoolStatus::Open
+    );
 }
 
 #[test]
