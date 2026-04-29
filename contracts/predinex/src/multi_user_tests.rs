@@ -18,7 +18,7 @@ struct MultiUserEnv<'a> {
     env: Env,
     client: PredinexContractClient<'a>,
     token: Address,
-    contract_id: Address,
+    _contract_id: Address,
 }
 
 fn setup_multi_user() -> MultiUserEnv<'static> {
@@ -39,7 +39,7 @@ fn setup_multi_user() -> MultiUserEnv<'static> {
         env,
         client,
         token: token_id.address(),
-        contract_id,
+        _contract_id: contract_id,
     }
 }
 
