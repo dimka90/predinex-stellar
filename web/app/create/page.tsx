@@ -21,6 +21,8 @@ interface CreateMarketDraft {
     outcomeA: string;
     outcomeB: string;
     duration: string;
+    category: string;
+    referenceLink: string;
 }
 
 const EMPTY_DRAFT: CreateMarketDraft = {
@@ -29,6 +31,8 @@ const EMPTY_DRAFT: CreateMarketDraft = {
     outcomeA: '',
     outcomeB: '',
     duration: '',
+    category: 'crypto',
+    referenceLink: '',
 };
 
 type FormErrors = Partial<Record<keyof CreateMarketDraft, string>>;
@@ -233,6 +237,41 @@ export default function CreateMarket() {
                                     aria-describedby={errors.duration ? 'duration-error' : undefined}
                                 />
                                 {errors.duration && <p id="duration-error" role="alert" className="mt-1 text-sm text-red-500">{errors.duration}</p>}
+                            </div>
+
+                            {/* Category */}
+                            <div>
+                                <label htmlFor="category" className="block text-sm font-medium mb-1">Category</label>
+                                <select
+                                    id="category"
+                                    name="category"
+                                    value={draft.category}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                >
+                                    <option value="crypto">Cryptocurrency</option>
+                                    <option value="sports">Sports</option>
+                                    <option value="politics">Politics</option>
+                                    <option value="tech">Technology</option>
+                                    <option value="weather">Weather</option>
+                                    <option value="finance">Finance</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            {/* Reference Link */}
+                            <div>
+                                <label htmlFor="referenceLink" className="block text-sm font-medium mb-1">External Reference Link (optional)</label>
+                                <input
+                                    id="referenceLink"
+                                    name="referenceLink"
+                                    type="url"
+                                    value={draft.referenceLink}
+                                    onChange={handleChange}
+                                    placeholder="e.g. https://example.com/data"
+                                    className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                                <p className="mt-1 text-xs text-muted-foreground">Link to supporting data or resolution criteria</p>
                             </div>
 
                             <div className="flex items-center gap-3">
