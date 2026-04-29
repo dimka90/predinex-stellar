@@ -14,8 +14,28 @@ import {
   type UserBetData,
 } from '../soroban-read-api';
 import { getUserActivityFromSoroban } from '../soroban-event-service';
+import {
+  getMarkets,
+  getTotalVolume,
+  getUserActivity,
+} from '../stacks-api';
 import type { ActivityItem } from './types';
 
+export function getStacksCoreApiBaseUrl(): string {
+  return getRuntimeConfig().api.coreApiUrl;
+}
+
+export async function fetchPredinexContractEvents(limit = 100): Promise<unknown> {
+  const cfg = getRuntimeConfig();
+  const url = `${cfg.api.coreApiUrl}/extended/v1/contract/${cfg.contract.address}/${cfg.contract.name}/events?limit=${limit}`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch contract events: ${response.status}`);
+  }
+
+  return response.json();
+}
 
 /**
  * Fetches user activity via the Soroban event pipeline.
@@ -73,5 +93,13 @@ export const predinexReadApi = {
   /** Canonical Soroban read: get total pool count */
   getPoolCount,
   /** Canonical Soroban read: get user activity via events */
+  getUserActivitySoroban,
+  /** Canonical Soroban read: get user activity via events */
   getUserActivity: getUserActivitySoroban,
+  /** Legacy delegates retained for compatibility while callers migrate */
+  getMarkets,
+  getTotalVolume,
+  getStacksCoreApiBaseUrl,
+  fetchPredinexContractEvents,
+  getStacksActivity: getUserActivity,
 };

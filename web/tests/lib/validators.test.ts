@@ -1,25 +1,52 @@
 import { describe, it, expect } from 'vitest';
 import {
+  validateContractId,
   validatePoolDescription,
   validatePoolTitle,
   validateOutcome,
+  validateDuration,
+  validateStellarAddress,
+  validateStellarContractAddress,
   MAX_TITLE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
   MAX_OUTCOME_LENGTH,
-  validateDuration,
   MIN_POOL_DURATION_SECS,
+  MAX_POOL_DURATION_SECS,
 } from '../../app/lib/validators';
 
 describe('validateContractId', () => {
-  describe('valid identifiers', () => {
-    it('accepts a valid Soroban contract identifier', () => {
-      const result = validateContractId(
-        'CCZABC7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V7V',
-        'mainnet'
-      );
-      expect(result.valid).toBe(true);
-      expect(result.error).toBeUndefined();
-    });
+  it('accepts a valid mainnet contract identifier', () => {
+    const result = validateContractId(
+      'SPENV2J0V4BHRFAZ6FVF97K9ZGQJ0GT19RC3JFN7.predinex-pool',
+      'mainnet'
+    );
+    expect(result.valid).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('accepts a valid testnet contract identifier', () => {
+    const result = validateContractId(
+      'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.predinex-pool',
+      'testnet'
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects missing separators', () => {
+    const result = validateContractId('ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM');
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/format/i);
+  });
+
+  it('rejects a network/address mismatch', () => {
+    const result = validateContractId(
+      'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.predinex-pool',
+      'mainnet'
+    );
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/mainnet/i);
+  });
+});
 
 describe('validateStellarAddress', () => {
   describe('valid addresses', () => {
@@ -50,13 +77,13 @@ describe('validateStellarAddress', () => {
     });
 
     it('rejects a null input', () => {
-      const result = validateStellarAddress(null as any);
+      const result = validateStellarAddress(null as never);
       expect(result.valid).toBe(false);
       expect(result.error).toMatch(/required/i);
     });
 
     it('rejects an undefined input', () => {
-      const result = validateStellarAddress(undefined as any);
+      const result = validateStellarAddress(undefined as never);
       expect(result.valid).toBe(false);
       expect(result.error).toMatch(/required/i);
     });

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { stroopsToXlm } from '../lib/formatting';
+import { formatTokenAmount } from '../lib/formatting';
 
 interface TransactionFeeModalProps {
   isOpen: boolean;
@@ -23,8 +23,7 @@ export function TransactionFeeModal({
 }: TransactionFeeModalProps) {
   if (!isOpen) return null;
 
-  // Assume formatting function exists or implement directly if not
-  const feeXlm = stroopsToXlm ? stroopsToXlm(Number(feeStroops)) : (Number(feeStroops) / 10_000_000).toFixed(7);
+  const feeLabel = formatTokenAmount(Number(feeStroops));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
@@ -38,7 +37,7 @@ export function TransactionFeeModal({
           <div className="bg-muted/50 p-4 rounded-xl border border-border mb-6">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium text-muted-foreground">Estimated Network Fee</span>
-              <span className="font-bold text-foreground">{feeXlm} XLM</span>
+              <span className="font-bold text-foreground">{feeLabel}</span>
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />

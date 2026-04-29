@@ -1,13 +1,11 @@
 import {
-  TransactionBuilder,
-  Networks,
   Address,
-  xdr,
-  StrKey,
   Contract,
   nativeToScVal,
+  Networks,
   rpc,
   Transaction,
+  TransactionBuilder,
 } from '@stellar/stellar-sdk';
 import { FreighterWalletClient } from './freighter-adapter';
 
@@ -18,7 +16,14 @@ export interface SorobanTxResult {
   error?: string;
 }
 
-export type TxStage = 'idle' | 'simulating' | 'signing' | 'submitting' | 'polling' | 'success' | 'error';
+export type TxStage =
+  | 'idle'
+  | 'simulating'
+  | 'signing'
+  | 'submitting'
+  | 'polling'
+  | 'success'
+  | 'error';
 
 export class SorobanTransactionService {
   private server: rpc.Server;
@@ -41,8 +46,8 @@ export class SorobanTransactionService {
       throw new Error(`Simulation failed: ${simulation.error}`);
     }
 
-    const assembledTx = rpc.assembleTransaction(tx, simulation);
-    
+    const assembledTx = rpc.assembleTransaction(tx, simulation).build();
+
     if (onFeeEstimated) {
       const proceed = await onFeeEstimated(assembledTx.fee);
       if (!proceed) {
@@ -60,7 +65,7 @@ export class SorobanTransactionService {
     onStageChange?.('submitting');
     const submission = await this.server.sendTransaction(signedTx);
     if (submission.status === 'ERROR') {
-      throw new Error(`Submission failed: ${JSON.stringify(submission.errorResultXdr)}`);
+      throw new Error(`Submission failed: ${JSON.stringify(submission.errorResult)}`);
     }
 
     onStageChange?.('polling');
@@ -116,6 +121,7 @@ export class SorobanTransactionService {
     onFeeEstimated?: (feeStroops: string) => Promise<boolean>
   ): Promise<SorobanTxResult> {
     if (!wallet.address) throw new Error('Wallet not connected');
+
     const contract = new Contract(contractId);
     const sourceAccount = await this.server.getAccount(wallet.address);
 
@@ -146,6 +152,7 @@ export class SorobanTransactionService {
     onFeeEstimated?: (feeStroops: string) => Promise<boolean>
   ): Promise<SorobanTxResult> {
     if (!wallet.address) throw new Error('Wallet not connected');
+
     const contract = new Contract(contractId);
     const sourceAccount = await this.server.getAccount(wallet.address);
 
@@ -174,6 +181,7 @@ export class SorobanTransactionService {
     onFeeEstimated?: (feeStroops: string) => Promise<boolean>
   ): Promise<SorobanTxResult> {
     if (!wallet.address) throw new Error('Wallet not connected');
+
     const contract = new Contract(contractId);
     const sourceAccount = await this.server.getAccount(wallet.address);
 
@@ -205,17 +213,19 @@ export class SorobanTransactionService {
           txHash,
           returnValue: response.returnValue,
         };
-      } else if (response.status === 'FAILED') {
+      }
+      if (response.status === 'FAILED') {
         return {
           status: 'FAILED',
           txHash,
           error: 'Transaction failed on-chain',
         };
       }
-      // Wait 1 second
+
       await new Promise((resolve) => setTimeout(resolve, 1000));
       attempts++;
     }
+
     throw new Error('Transaction polling timed out');
   }
 }

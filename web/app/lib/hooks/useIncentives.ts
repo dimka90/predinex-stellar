@@ -159,6 +159,7 @@ export function useIncentives() {
   return {
     config,
     incentives,
+    setIncentives,
     isLoading,
     error,
     calculateBetIncentive,
@@ -170,7 +171,6 @@ export function useIncentives() {
     getTotalClaimedBonus,
     getPoolIncentiveStats,
     updateConfig,
-    setIncentives,
   };
 }
 // useIncentives hook improvement 1

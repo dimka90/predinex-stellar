@@ -22,8 +22,8 @@ export default function ClaimWinningsButton({
 }: ClaimWinningsButtonProps) {
     const [isPending, setIsPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { isConnected } = useWallet();
-    const { claim } = useClaimWinnings(userAddress);
+    const { address, isConnected } = useWallet();
+    const { claim } = useClaimWinnings(userAddress ?? address);
 
     const handleClaim = async () => {
         if (!isConnected) return;

@@ -27,10 +27,10 @@ describe('runtime-config', () => {
     expect(cfg.api.rpcUrl).toBeTypeOf('string');
   });
 
-  it('fails fast with actionable error when NEXT_PUBLIC_NETWORK is missing', () => {
+  it('defaults to testnet when NEXT_PUBLIC_NETWORK is missing', () => {
     delete process.env.NEXT_PUBLIC_NETWORK;
 
-    expect(() => getRuntimeConfig()).toThrow(/Missing required config: NEXT_PUBLIC_NETWORK/i);
+    expect(getRuntimeConfig().network).toBe('testnet');
   });
 
   it('fails fast with actionable error when NEXT_PUBLIC_NETWORK is invalid', () => {

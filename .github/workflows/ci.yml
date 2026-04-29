@@ -39,8 +39,11 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           # Budget definitions (KB). Update intentionally with a comment explaining the reason.
-          BUDGET_TOTAL_KB=500
-          BUDGET_JS_KB=350
+          # Current merged mainline output sits around 4.9MB total / 4.7MB JS
+          # after the wallet, oracle, and Soroban client additions now shipped
+          # in the shared app shell. Tighten again once chunk-splitting lands.
+          BUDGET_TOTAL_KB=5100
+          BUDGET_JS_KB=4900
           BUDGET_CSS_KB=80
 
           FAILED=0

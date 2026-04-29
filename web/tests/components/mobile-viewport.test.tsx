@@ -33,6 +33,7 @@ vi.mock('../../app/components/WalletAdapterProvider', () => ({
 }));
 
 vi.mock('../../app/components/NetworkMismatchWarning', () => ({
+  NetworkMismatchWarning: () => null,
   default: () => null,
 }));
 

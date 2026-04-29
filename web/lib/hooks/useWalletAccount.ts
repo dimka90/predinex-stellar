@@ -21,12 +21,12 @@ export function useWalletAccount(): WalletAccountData {
     queryKey: ['wallet-balance', address],
     queryFn: async () => {
       if (!address) return '0';
-      
+
       // Use Stellar Horizon API for balance
-      const horizonUrl = cfg.network === 'testnet' 
+      const horizonUrl = cfg.network === 'testnet'
         ? 'https://horizon-testnet.stellar.org'
         : 'https://horizon.stellar.org';
-      
+
       try {
         const response = await fetch(`${horizonUrl}/accounts/${address}`);
         if (!response.ok) {

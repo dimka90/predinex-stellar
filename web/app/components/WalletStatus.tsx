@@ -1,8 +1,6 @@
 'use client';
 
 import { useWalletConnect } from '@/app/lib/hooks/useWalletConnect';
-import { SessionValidator } from '@/app/lib/session-validator';
-import { WalletService } from '@/app/lib/wallet-service';
 import { AlertCircle, CheckCircle, Clock, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 

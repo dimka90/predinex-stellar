@@ -24,6 +24,11 @@ export function unitsToStroops(amount: number): number {
   return Math.floor(amount * STROOPS_PER_UNIT);
 }
 
+/**
+ * Backward-compatible alias for code still using the legacy STX naming.
+ */
+export const stxToMicroStx = unitsToStroops;
+
 
 /**
  * Convert stroops to token units (divide by STROOPS_PER_UNIT).
@@ -31,6 +36,11 @@ export function unitsToStroops(amount: number): number {
 export function stroopsToUnits(stroops: number): number {
   return stroops / STROOPS_PER_UNIT;
 }
+
+/**
+ * Backward-compatible alias for code still using the legacy STX naming.
+ */
+export const microStxToStx = stroopsToUnits;
 
 
 /**
@@ -45,6 +55,11 @@ export function formatTokenAmount(stroops: number): string {
     maximumFractionDigits: 7,
   }) + ' ' + TOKEN_SYMBOL;
 }
+
+/**
+ * Backward-compatible alias for code still using the legacy STX naming.
+ */
+export const formatStxAmount = formatTokenAmount;
 
 
 /**
@@ -64,6 +79,11 @@ export function formatTokenAmountCompact(stroops: number): string {
   }
 }
 
+/**
+ * Backward-compatible alias for code still using the legacy STX naming.
+ */
+export const formatStxAmountCompact = formatTokenAmountCompact;
+
 
 /**
  * Format a raw stroops value without asset suffix.
@@ -71,6 +91,11 @@ export function formatTokenAmountCompact(stroops: number): string {
 export function formatStroopsValue(stroops: number): string {
   return stroopsToUnits(stroops).toFixed(2);
 }
+
+/**
+ * Backward-compatible alias for code still using the legacy STX naming.
+ */
+export const formatMicroStxValue = formatStroopsValue;
 
 
 // Export the configurable token symbol for use in components
@@ -237,8 +262,8 @@ export function formatTimestamp(
   timestamp: number,
   format: 'short' | 'long' | 'relative' = 'short'
 ): string {
-  // Detect if timestamp is in seconds (before year 2100) or milliseconds
-  const ms = timestamp < 4_000_000_000_000 ? timestamp * 1000 : timestamp;
+  // Treat 10-digit unix timestamps as seconds and 13-digit values as milliseconds.
+  const ms = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
   const date = new Date(ms);
   
   switch (format) {

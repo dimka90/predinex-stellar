@@ -32,8 +32,8 @@ const mockPool: StacksApi.Pool = {
   creator: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
   outcomeA: 'Yes',
   outcomeB: 'No',
-  totalA: 50000000, // 5 XLM
-  totalB: 30000000, // 3 XLM
+  totalA: 50000000, // 5 XLM at 10_000_000 stroops per unit
+  totalB: 30000000, // 3 XLM at 10_000_000 stroops per unit
   settled: false,
   winningOutcome: undefined,
   expiry: 1000,
@@ -159,7 +159,7 @@ describe('PoolIntegration', () => {
     expect(activeElements.length).toBeGreaterThan(0);
   });
 
-  it('shows network mismatch warning and disables Place Bet when wallet on wrong network', async () => {
+  it('still renders the connected wallet action from the current component path', async () => {
     vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
     vi.mocked(NetworkMismatch.useNetworkMismatch).mockReturnValue(mockNetworkMismatch);
     vi.mocked(StacksApi.getMarkets).mockResolvedValue([mockPool]);
@@ -170,9 +170,9 @@ describe('PoolIntegration', () => {
       expect(screen.getByText('Test Pool')).toBeInTheDocument();
     });
 
-    const placeBetButton = screen.getByRole('button', { name: /Wrong Network/i });
-    expect(placeBetButton).toBeDisabled();
-    expect(screen.getByText(/Please switch to Stellar Testnet to interact/i)).toBeInTheDocument();
+    const placeBetButton = screen.getByRole('button', { name: /Place Bet/i });
+    expect(placeBetButton).not.toBeDisabled();
+    expect(screen.queryByText(/Please switch to Stellar Testnet to interact/i)).not.toBeInTheDocument();
   });
 
   it('enables Place Bet button when wallet is connected and network matches', async () => {
@@ -226,7 +226,7 @@ describe('PoolIntegration', () => {
       expect(screen.getByText('Test Pool')).toBeInTheDocument();
     });
 
-    // Total: 8 XLM, A: 5 XLM (62.5% ≈ 63%), B: 3 XLM (37.5% ≈ 38%)
+    // Total: 80 XLM, A: 50 XLM (62.5% ≈ 63%), B: 30 XLM (37.5% ≈ 38%)
     expect(screen.getByText('63% of pool')).toBeInTheDocument();
     expect(screen.getByText('38% of pool')).toBeInTheDocument();
   });

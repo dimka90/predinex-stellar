@@ -2,11 +2,11 @@
 
 /**
  * WalletProvider - React Context Provider for wallet authentication
- * 
+ *
  * This component manages the authentication state for the entire application,
  * providing wallet connection, user session management, and authentication
  * functions to child components through React Context.
- * 
+ *
  * Supports Stellar/Soroban wallets via Freighter and WalletConnect.
  */
 
@@ -45,7 +45,7 @@ const WalletContext = createContext<WalletContextValue | undefined>(undefined);
  * WalletProvider is the root context provider for wallet-related functionality.
  * It initializes the authentication session, handles sign-ins, and provides
  * a unified interface for wallet interactions to the rest of the application.
- * 
+ *
  * @param children - The React components to be wrapped by the provider
  */
 export function WalletProvider({ children }: { children: ReactNode }) {
@@ -103,7 +103,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     /**
      * Orchestrates the connection flow for a specific wallet provider.
-     * 
+     *
      * @param walletType - The brand of wallet being connected (Leather, Xverse, etc.)
      */
     const handleWalletSelection = useCallback(async (walletType: WalletType) => {
@@ -176,7 +176,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 /**
  * Custom hook to access the wallet authentication context.
  * Must be used within a component wrapped by WalletProvider.
- * 
+ *
  * @returns The current WalletContextValue
  */
 export function useWallet() {

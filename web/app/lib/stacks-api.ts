@@ -1,12 +1,12 @@
 /**
  * @deprecated This module is deprecated and maintained for backward compatibility only.
- * 
+ *
  * The Stacks/Hiro API integration is being phased out in favor of Soroban-native reads.
  * For new code, please use:
  * - `soroban-read-api.ts` for contract reads (getPool, getUserBet, getPoolCount)
  * - `soroban-event-service.ts` for user activity
  * - `predinex-read-api.ts` as the canonical adapter interface
- * 
+ *
  * This file will be removed in a future release.
  */
 import { STACKS_MAINNET, STACKS_TESTNET, StacksNetwork } from "@stacks/network";

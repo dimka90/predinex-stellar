@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { Clock, TrendingUp, ExternalLink, Gift } from 'lucide-react';
-import { UserBet, ClaimTransaction } from '../../lib/dashboard-types';
-import { formatTimeRemaining } from '../../lib/market-utils';
+import type { UserBet } from '../../lib/dashboard-types';
+import type { ClaimTxState } from '../../lib/hooks/useClaimWinnings';
 import { formatPercentage, formatCurrency } from '../../lib/dashboard-utils';
 
 interface ActiveBetsCardProps {
   bets: UserBet[];
-  claimTransactions: Map<number, ClaimTransaction>;
+  claimTransactions: Map<number, ClaimTxState>;
   onClaim: (poolId: number) => void;
   isLoading?: boolean;
 }

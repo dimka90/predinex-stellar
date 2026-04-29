@@ -51,11 +51,6 @@ const ActiveBetsCard = dynamic(() => import('../components/dashboard/ActiveBetsC
 function DashboardContent() {
   const { address: stxAddress, isConnected } = useWallet();
   const { claimTransactions, claim, feePrompt, setFeePrompt, stage, setStage } = useClaimWinnings(stxAddress);
-  
-  if (!isConnected) {
-    return <DisconnectedState />;
-  }
-
   const {
     activities,
     isLoading: activityLoading,
@@ -63,6 +58,10 @@ function DashboardContent() {
     refresh: refreshActivity,
   } = useUserActivity(stxAddress ?? undefined, 5);
   const { activeBets, isLoading: betsLoading, refresh: refreshBets } = useActiveBets(stxAddress);
+
+  if (!isConnected) {
+    return <DisconnectedState />;
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -108,6 +107,8 @@ function DashboardContent() {
                     void claim(poolId, () => {
                       refreshActivity();
                       refreshBets();
+                    }).catch(() => {
+                      // useClaimWinnings already records the failure state and toast.
                     });
                   }}
                   isLoading={betsLoading}

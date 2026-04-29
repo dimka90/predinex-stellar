@@ -323,7 +323,6 @@ pub struct CreatePoolEvent {
     pub outcome_b_name: String,
 }
 
-
 /// #195 — Pool-level protocol revenue exposed for analytics and audits.
 ///
 /// `settlement_protocol_fee` is the bps fee amount fixed when the pool is
@@ -1649,7 +1648,7 @@ impl PredinexContract {
         match pool.status {
             PoolStatus::Cancelled => match bet {
                 Some(_) => ClaimStatus::RefundClaimable,
-                None => ClaimStatus::NeverBet,
+                None => ClaimStatus::AlreadyClaimed,
             },
             PoolStatus::Voided => match bet {
                 Some(_) => ClaimStatus::RefundClaimable,

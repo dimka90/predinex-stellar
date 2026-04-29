@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { UserBet } from '../dashboard-types';
 import { getUserBets } from '../dashboard-api';
+import { userDashboardCache } from '../cache-invalidation';
 import { useVisibilityAwarePolling } from './useVisibilityAwarePolling';
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -29,12 +30,21 @@ export function useActiveBets(userAddress: string | null | undefined): UseActive
       return;
     }
 
+    const cached = userDashboardCache.get<UserBet[]>(userAddress);
+    if (cached) {
+      setActiveBets(cached);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
       const bets = await getUserBets(userAddress);
       setActiveBets(bets);
+      userDashboardCache.set(userAddress, bets, REFRESH_INTERVAL_MS);
     } catch (e) {
       setError('Failed to load active positions. Please try again.');
       console.error('useActiveBets error:', e);

@@ -22,10 +22,17 @@ export default function MarketListPreloader() {
     };
 
     // Use idle time so we don't block the initial page render/hydration.
-    if ('requestIdleCallback' in (window as any)) {
-      (window as any).requestIdleCallback(() => void warmCache(), { timeout: 2000 });
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions
+      ) => number;
+    };
+
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+      idleWindow.requestIdleCallback(() => void warmCache(), { timeout: 2000 });
     } else {
-      (window as any).setTimeout(() => void warmCache(), 1000);
+      window.setTimeout(() => void warmCache(), 1000);
     }
   }, []);
 

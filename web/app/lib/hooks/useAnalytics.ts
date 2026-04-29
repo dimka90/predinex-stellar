@@ -27,19 +27,31 @@ export function useAnalytics(): AnalyticsData {
           getTotalVolume(),
         ]);
 
-        const activePools = markets.filter((m) => !m.settled && !m.expired).length;
-        const settledPools = markets.filter((m) => m.settled).length;
-        const expiredPools = markets.filter((m) => m.expired && !m.settled).length;
+        const activePools = markets.filter((m) => m.status === 'active').length;
+        const settledPools = markets.filter((m) => m.status === 'settled').length;
+        const expiredPools = markets.filter((m) => m.status === 'expired').length;
 
-        // Build 7-day volume history from pool creation timestamps
+        type MarketWithCreatedAt = (typeof markets)[number] & { createdAt: number };
+        const marketsWithCreatedAt = markets.filter(
+          (market): market is MarketWithCreatedAt =>
+            typeof (market as { createdAt?: unknown }).createdAt === 'number'
+        );
+
+        // Prefer real creation timestamps when available. Older adapters do not
+        // expose them yet, so keep analytics functional with a conservative fallback.
         const now = Date.now();
         const DAY = 86_400_000;
         const volumeHistory = Array.from({ length: 7 }, (_, i) => {
           const dayStart = now - (6 - i) * DAY;
           const dayEnd = dayStart + DAY;
-          const dayVolume = markets
-            .filter((m) => m.createdAt >= dayStart && m.createdAt < dayEnd)
-            .reduce((sum, m) => sum + (Number(m.totalA ?? 0) + Number(m.totalB ?? 0)), 0);
+          const dayVolume =
+            marketsWithCreatedAt.length > 0
+              ? marketsWithCreatedAt
+                  .filter((market) => market.createdAt >= dayStart && market.createdAt < dayEnd)
+                  .reduce((sum, market) => sum + Number(market.totalA ?? 0) + Number(market.totalB ?? 0), 0)
+              : i === 6
+                ? totalVolume
+                : 0;
           return {
             label: new Date(dayStart).toLocaleDateString('en-US', { weekday: 'short' }),
             value: dayVolume,

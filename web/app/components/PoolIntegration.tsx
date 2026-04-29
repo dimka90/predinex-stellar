@@ -7,7 +7,6 @@ import { useNetworkMismatch } from '@/lib/hooks/useNetworkMismatch';
 import { Loader2, AlertCircle, CheckCircle, TrendingUp, Users, RefreshCw } from 'lucide-react';
 import { formatDisplayAddress } from '../lib/address-display';
 import { getMarkets, type Pool } from '../lib/stacks-api';
-import { formatXlmAmount, stroopsToXlm } from '@/app/lib/formatting';
 
 interface PoolStats {
   totalPools: number;
@@ -202,7 +201,7 @@ export default function PoolIntegration() {
                   {/* Pool Info */}
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Creator: {formatDisplayAddress(pool.creator)}</span>
-                    <span>Expires in {pool.expiryBlock} seconds</span>
+                    <span>Expires in {pool.expiry} seconds</span>
                   </div>
 
                   {/* Action Button */}

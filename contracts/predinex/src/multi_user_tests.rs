@@ -118,14 +118,7 @@ fn m2_per_user_totals_stay_correct_after_repeated_bets() {
     mint(&t.env, &t.token, &user, 10_000);
 
     // Interleave bets on both outcomes
-    let bets: &[(u32, i128)] = &[
-        (0, 100),
-        (1, 200),
-        (0, 150),
-        (1, 50),
-        (0, 300),
-        (1, 400),
-    ];
+    let bets: &[(u32, i128)] = &[(0, 100), (1, 200), (0, 150), (1, 50), (0, 300), (1, 400)];
 
     let mut expected_a = 0i128;
     let mut expected_b = 0i128;
@@ -200,11 +193,9 @@ fn m4_settlement_and_claims_correct_after_accumulation() {
     let pool_id = make_pool_mu(&t);
 
     // Winners bet on outcome A
-    let winners: alloc::vec::Vec<Address> =
-        (0..4).map(|_| Address::generate(&t.env)).collect();
+    let winners: alloc::vec::Vec<Address> = (0..4).map(|_| Address::generate(&t.env)).collect();
     // Losers bet on outcome B
-    let losers: alloc::vec::Vec<Address> =
-        (0..2).map(|_| Address::generate(&t.env)).collect();
+    let losers: alloc::vec::Vec<Address> = (0..2).map(|_| Address::generate(&t.env)).collect();
 
     let winner_bet = 250i128;
     let loser_bet = 500i128;
@@ -272,17 +263,11 @@ fn m5_pool_totals_correct_with_many_small_repeated_bets() {
     let bets_per_user = 10usize;
     let bet_amount = 10i128;
 
-    let users: alloc::vec::Vec<Address> = (0..num_users)
-        .map(|_| Address::generate(&t.env))
-        .collect();
+    let users: alloc::vec::Vec<Address> =
+        (0..num_users).map(|_| Address::generate(&t.env)).collect();
 
     for user in &users {
-        mint(
-            &t.env,
-            &t.token,
-            user,
-            bet_amount * bets_per_user as i128,
-        );
+        mint(&t.env, &t.token, user, bet_amount * bets_per_user as i128);
         for _ in 0..bets_per_user {
             t.client.place_bet(user, &pool_id, &0u32, &bet_amount);
         }
@@ -374,8 +359,7 @@ fn m7_treasury_equals_fee_after_all_claims() {
     let t = setup_multi_user();
     let pool_id = make_pool_mu(&t);
 
-    let winners: alloc::vec::Vec<Address> =
-        (0..3).map(|_| Address::generate(&t.env)).collect();
+    let winners: alloc::vec::Vec<Address> = (0..3).map(|_| Address::generate(&t.env)).collect();
     let loser = Address::generate(&t.env);
 
     let winner_bet = 200i128;
@@ -461,7 +445,7 @@ fn m9_user_betting_both_sides_claims_only_winning_side() {
     // User bets on both sides
     t.client.place_bet(&user, &pool_id, &0u32, &300i128); // outcome A
     t.client.place_bet(&user, &pool_id, &1u32, &200i128); // outcome B
-    // Other user bets on B to ensure there is a losing side
+                                                          // Other user bets on B to ensure there is a losing side
     t.client.place_bet(&other, &pool_id, &1u32, &500i128);
 
     // total_a = 300, total_b = 700, total = 1000

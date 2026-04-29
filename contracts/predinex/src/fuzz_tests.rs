@@ -172,9 +172,12 @@ fn p1_payout_formula_holds_for_uneven_distributions() {
         t.client.settle_pool(&creator, &pool_id, &winning_outcome);
 
         let total_pool = total_a + total_b;
-        let winning_side_total = if winning_outcome == 0 { total_a } else { total_b };
-        let expected =
-            expected_winnings(winning_side_total, winning_side_total, total_pool, 200);
+        let winning_side_total = if winning_outcome == 0 {
+            total_a
+        } else {
+            total_b
+        };
+        let expected = expected_winnings(winning_side_total, winning_side_total, total_pool, 200);
 
         let actual = t.client.claim_winnings(&winner, &pool_id);
         assert_eq!(
@@ -271,9 +274,12 @@ fn p3_deterministic_fuzz_single_winner_distributions() {
         t.client.settle_pool(&creator, &pool_id, &winning_outcome);
 
         let total_pool = total_a + total_b;
-        let winning_side_total = if winning_outcome == 0 { total_a } else { total_b };
-        let expected =
-            expected_winnings(winning_side_total, winning_side_total, total_pool, 200);
+        let winning_side_total = if winning_outcome == 0 {
+            total_a
+        } else {
+            total_b
+        };
+        let expected = expected_winnings(winning_side_total, winning_side_total, total_pool, 200);
 
         let actual = t.client.claim_winnings(&winner, &pool_id);
         assert_eq!(
@@ -314,9 +320,8 @@ fn p4_deterministic_fuzz_multi_winner_distributions() {
         let winners: alloc::vec::Vec<Address> = (0..num_winners)
             .map(|_| Address::generate(&t.env))
             .collect();
-        let losers: alloc::vec::Vec<Address> = (0..num_losers)
-            .map(|_| Address::generate(&t.env))
-            .collect();
+        let losers: alloc::vec::Vec<Address> =
+            (0..num_losers).map(|_| Address::generate(&t.env)).collect();
 
         let winner_bets: alloc::vec::Vec<i128> = (0..num_winners)
             .map(|_| rng.next_in(10_000) as i128)
@@ -460,7 +465,10 @@ fn p6_payout_invariant_holds_with_minimal_losing_side() {
     let expected = (total_a * net) / total_a; // 9_800
 
     let actual = t.client.claim_winnings(&winner, &pool_id);
-    assert_eq!(actual, expected, "payout must equal net pool for sole winner");
+    assert_eq!(
+        actual, expected,
+        "payout must equal net pool for sole winner"
+    );
 }
 
 /// P7: Payout invariant holds when only one token is on the winning side.
@@ -493,7 +501,10 @@ fn p7_payout_invariant_holds_with_minimal_winning_side() {
     let expected = (total_a * net) / total_a; // 9_800
 
     let actual = t.client.claim_winnings(&winner, &pool_id);
-    assert_eq!(actual, expected, "sole winner must receive the full net pool");
+    assert_eq!(
+        actual, expected,
+        "sole winner must receive the full net pool"
+    );
 }
 
 /// P8: Fee is zero when protocol fee is set to 0 bps.
@@ -521,7 +532,10 @@ fn p8_zero_fee_winner_receives_entire_pool() {
     t.client.settle_pool(&creator, &pool_id, &0u32);
 
     let actual = t.client.claim_winnings(&winner, &pool_id);
-    assert_eq!(actual, 1000i128, "with 0% fee winner must receive entire pool");
+    assert_eq!(
+        actual, 1000i128,
+        "with 0% fee winner must receive entire pool"
+    );
     assert_eq!(
         t.client.get_treasury_balance(),
         0i128,
@@ -581,9 +595,8 @@ fn p10_conservation_invariant_holds_for_random_distribution() {
         let winners: alloc::vec::Vec<Address> = (0..num_winners)
             .map(|_| Address::generate(&t.env))
             .collect();
-        let losers: alloc::vec::Vec<Address> = (0..num_losers)
-            .map(|_| Address::generate(&t.env))
-            .collect();
+        let losers: alloc::vec::Vec<Address> =
+            (0..num_losers).map(|_| Address::generate(&t.env)).collect();
 
         let winner_bets: alloc::vec::Vec<i128> = (0..num_winners)
             .map(|_| rng.next_in(5_000) as i128)
