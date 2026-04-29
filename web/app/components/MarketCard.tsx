@@ -1,16 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { Clock, TrendingUp, Users, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, TrendingUp, Users, CheckCircle, XCircle, Star, StarOff } from 'lucide-react';
 import { ProcessedMarket } from '../lib/market-types';
 import { formatSTXAmount, formatTimeRemaining } from '../lib/market-utils';
 import { formatDisplayAddress } from '../lib/address-display';
+import { usePoolFavorites } from '../lib/hooks/usePoolFavorites';
 
 interface MarketCardProps {
   market: ProcessedMarket;
 }
 
 export default function MarketCard({ market }: MarketCardProps) {
+  const { isFavorite, toggleFavorite } = usePoolFavorites();
+  const favorite = isFavorite(market.poolId);
+
   const getStatusColor = (status: ProcessedMarket['status']) => {
     switch (status) {
       case 'active':
@@ -71,10 +75,37 @@ export default function MarketCard({ market }: MarketCardProps) {
             <span className="text-xs font-mono text-muted-foreground">
               #POOL-{market.poolId}
             </span>
-            <span className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${getStatusColor(market.status)}`}>
-              {getStatusIcon(market.status)}
-              {getStatusText(market.status)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${getStatusColor(market.status)}`}
+              >
+                {getStatusIcon(market.status)}
+                {getStatusText(market.status)}
+              </span>
+
+              <button
+                type="button"
+                aria-label={favorite ? `Unfavorite pool #${market.poolId}` : `Favorite pool #${market.poolId}`}
+                title={favorite ? 'Remove bookmark' : 'Bookmark pool'}
+                onClick={(e) => {
+                  // Prevent the surrounding Link from navigating when toggling favorites.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleFavorite(market.poolId);
+                }}
+                className={`p-2 rounded-lg border transition-colors ${
+                  favorite
+                    ? 'bg-yellow-400/10 border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/15'
+                    : 'bg-muted/30 border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                {favorite ? (
+                  <Star className="w-4 h-4" fill="currentColor" strokeWidth={2} />
+                ) : (
+                  <StarOff className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Title and Description */}
