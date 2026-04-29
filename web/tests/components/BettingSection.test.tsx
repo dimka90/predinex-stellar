@@ -60,6 +60,11 @@ const mockPool = {
   outcomeB: 'Outcome B',
   totalA: 1000000,
   totalB: 2000000,
+  // Pool-configured bet limits in raw token units (stroops).
+  // 1_000_000 stroops = 0.1 XLM
+  minBet: 1_000_000,
+  // 50_000_000 stroops = 5 XLM
+  maxBet: 50_000_000,
   settled: false,
   winningOutcome: undefined,
   expiry: 1000,
@@ -147,7 +152,23 @@ describe('BettingSection', () => {
     await user.click(betButton);
 
     expect(showToast).toHaveBeenCalledWith('Minimum bet is 0.1 XLM', 'error');
-    expect(vi.mocked(predinexContract.placeBet)).not.toHaveBeenCalled();
+    expect(vi.mocked(predinexContract.placeBetSoroban)).not.toHaveBeenCalled();
+  });
+
+  it('shows error toast for bet above maximum amount', async () => {
+    vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(connectedWallet);
+
+    const user = userEvent.setup();
+    renderWithProviders(<BettingSection pool={mockPool} poolId={0} />);
+
+    const input = screen.getByLabelText(/Enter bet amount/i);
+    await user.type(input, '6'); // Greater than max (5 XLM)
+
+    const betButton = screen.getByText(/Bet on Outcome A/i);
+    await user.click(betButton);
+
+    expect(showToast).toHaveBeenCalledWith('Maximum bet is 5 XLM', 'error');
+    expect(vi.mocked(predinexContract.placeBetSoroban)).not.toHaveBeenCalled();
   });
 
   it('calls predinexContract.placeBet with correct parameters when placing bet', async () => {
@@ -169,7 +190,7 @@ describe('BettingSection', () => {
           wallet: connectedWallet,
           poolId: 0,
           outcome: 0,
-          amountMicroStx: 15_000_000,
+          amountStroops: 15_000_000,
         })
       );
     });

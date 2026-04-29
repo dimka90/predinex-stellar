@@ -57,6 +57,15 @@ pub enum DataKey {
     TreasuryRecipient,
     DelegatedSettler(u32),
     FreezeAdmin,
+    /// Per-pool minimum bet amount (in raw token units / i128).
+    ///
+    /// When absent, defaults to `DEFAULT_MIN_BET_STROOPS`.
+    PoolMinBet(u32),
+    /// Per-pool maximum bet amount (in raw token units / i128).
+    ///
+    /// When absent, defaults to `DEFAULT_MAX_BET_STROOPS`.
+    /// A value of `0` is treated as "no maximum" in `place_bet`.
+    PoolMaxBet(u32),
     /// #179 — per-pool creation fee in stroops. Set by the admin via
     /// `set_creation_fee`; defaults to 0 (no fee) when absent.
     CreationFee,
@@ -73,6 +82,20 @@ pub enum DataKey {
     ContractVersion,
     /// #176 — who triggered settlement for this pool (Creator or Operator).
     PoolSettlementSource(u32),
+    /// Maximum allowed total pool size. 0 disables the cap.
+    MaxPoolSize,
+    /// Threshold at/above which the pool enters automatic cooling. 0 disables.
+    LargePoolThreshold,
+    /// Cooling duration (seconds) applied when threshold is reached.
+    LargePoolCoolingPeriodSecs,
+    /// If present and in the future, pool is in mandatory cooling period.
+    PoolCoolingUntil(u32),
+    /// Max bets allowed per wallet within rate-limit window. 0 disables.
+    RateLimitMaxBetsPerWindow,
+    /// Rate-limit window length in seconds. 0 disables.
+    RateLimitWindowSecs,
+    /// Per-wallet rate-limit usage state.
+    WalletRateLimit(Address),
 }
 
 // #189 — TTL bump policy for persistent storage entries.
@@ -107,6 +130,21 @@ const MAX_TITLE_LENGTH: u32 = 100;
 const MAX_DESCRIPTION_LENGTH: u32 = 1_000;
 /// #154 — Maximum length for pool outcome labels in bytes.
 const MAX_OUTCOME_LENGTH: u32 = 50;
+
+/// Default per-pool minimum bet: 0 (no minimum).
+///
+/// Admin/treasury can set explicit limits per pool. When absent, we
+/// intentionally avoid enforcing UI-level constraints so existing pools /
+/// contract tests keep working.
+const DEFAULT_MIN_BET_STROOPS: i128 = 0;
+/// Default per-pool maximum bet: 0 (no maximum).
+const DEFAULT_MAX_BET_STROOPS: i128 = 0;
+/// Default absolute cap for a pool total (A+B). 0 means "no cap".
+const DEFAULT_MAX_POOL_SIZE_STROOPS: i128 = 0;
+/// Default threshold for triggering automatic cooling. 0 means disabled.
+const DEFAULT_LARGE_POOL_THRESHOLD_STROOPS: i128 = 0;
+/// Default cooling duration for large pools.
+const DEFAULT_LARGE_POOL_COOLING_PERIOD_SECS: u64 = 0;
 
 /// #156 — Typed contract error model. Replaces string panics for all failure
 /// paths so SDK consumers can match on a stable error code rather than parsing
@@ -157,6 +195,18 @@ pub enum ContractError {
     PoolTotalOverflow = 41,
     UserBetOverflow = 42,
     TreasuryOverflow = 43,
+    /// Bet amount is below the configured per-pool minimum.
+    BetBelowMinBet = 44,
+    /// Bet amount is above the configured per-pool maximum.
+    BetAboveMaxBet = 45,
+    /// Current pool size exceeds configured circuit-breaker maximum.
+    PoolSizeLimitExceeded = 46,
+    /// Cooling period setting is invalid for current threshold config.
+    InvalidCoolingPeriod = 47,
+    /// Configured rate-limit values are invalid.
+    InvalidRateLimitConfig = 48,
+    /// Wallet exceeded allowed request rate.
+    RateLimitExceeded = 49,
 }
 
 /// #176 — Settlement source tag indicating who initiated pool settlement.
@@ -217,6 +267,48 @@ pub struct Pool {
     pub expiry: u64,
     /// Current operational status of the pool. Defaults to `Open`.
     pub status: PoolStatus,
+}
+
+/// Per-pool bet limits exposed for frontend validation.
+///
+/// Values are in raw token units (the same units accepted by `place_bet`).
+#[derive(Clone)]
+#[contracttype]
+pub struct PoolBetLimits {
+    pub min_bet: i128,
+    pub max_bet: i128,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct CircuitBreakerConfig {
+    pub max_pool_size: i128,
+    pub large_pool_threshold: i128,
+    pub cooling_period_secs: u64,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct RateLimitConfig {
+    pub max_bets_per_window: u32,
+    pub window_secs: u64,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct WalletRateLimitState {
+    pub window_start: u64,
+    pub used: u32,
+}
+
+#[derive(Clone)]
+#[contracttype]
+pub struct WalletRateLimitStatus {
+    pub max_bets_per_window: u32,
+    pub window_secs: u64,
+    pub window_start: u64,
+    pub used: u32,
+    pub remaining: u32,
 }
 
 /// Claim status for a user in a specific pool.
@@ -531,6 +623,226 @@ impl PredinexContract {
             .unwrap_or(PROTOCOL_FEE_DEFAULT_BPS)
     }
 
+    /// Set per-pool bet limits.
+    ///
+    /// Only the treasury recipient may call this (same permission model as
+    /// other admin configuration).
+    ///
+    /// - `min_bet` must be >= 0
+    /// - `max_bet` must be >= 0, and either be 0 (no max) or >= `min_bet`
+    pub fn set_pool_bet_limits(
+        env: Env,
+        caller: Address,
+        pool_id: u32,
+        min_bet: i128,
+        max_bet: i128,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        let treasury_recipient: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::TreasuryRecipient)
+            .ok_or(ContractError::NotInitialized)?;
+        if caller != treasury_recipient {
+            return Err(ContractError::Unauthorized);
+        }
+
+        // Ensure pool exists.
+        let _pool_exists: Pool = env
+            .storage()
+            .persistent()
+            .get::<_, Pool>(&DataKey::Pool(pool_id))
+            .ok_or(ContractError::PoolNotFound)?;
+
+        if min_bet < 0 || max_bet < 0 {
+            return Err(ContractError::InvalidBetAmount);
+        }
+        if max_bet != 0 && min_bet > max_bet {
+            return Err(ContractError::InvalidBetAmount);
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::PoolMinBet(pool_id), &min_bet);
+        env.storage()
+            .persistent()
+            .set(&DataKey::PoolMaxBet(pool_id), &max_bet);
+
+        // Keep bet limit entries alive alongside the pool for UI reads.
+        env.storage().persistent().extend_ttl(
+            &DataKey::PoolMinBet(pool_id),
+            POOL_BUMP_THRESHOLD,
+            POOL_BUMP_TARGET,
+        );
+        env.storage().persistent().extend_ttl(
+            &DataKey::PoolMaxBet(pool_id),
+            POOL_BUMP_THRESHOLD,
+            POOL_BUMP_TARGET,
+        );
+
+        env.events().publish(
+            (Symbol::new(&env, "pool_bet_limits_set"), event_version(&env), pool_id),
+            (min_bet, max_bet),
+        );
+        Ok(())
+    }
+
+    /// Configure pool circuit breaker for large pools.
+    ///
+    /// Only treasury recipient can modify this config.
+    /// - `max_pool_size` must be >= 0 (0 disables cap)
+    /// - `large_pool_threshold` must be >= 0 (0 disables auto-cooling)
+    /// - If threshold > 0 then `cooling_period_secs` must be > 0
+    /// - If both are set, `max_pool_size` must be 0 (disabled) or >= threshold
+    pub fn set_circuit_breaker_config(
+        env: Env,
+        caller: Address,
+        max_pool_size: i128,
+        large_pool_threshold: i128,
+        cooling_period_secs: u64,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        let treasury_recipient: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::TreasuryRecipient)
+            .ok_or(ContractError::NotInitialized)?;
+        if caller != treasury_recipient {
+            return Err(ContractError::Unauthorized);
+        }
+        if max_pool_size < 0 || large_pool_threshold < 0 {
+            return Err(ContractError::InvalidBetAmount);
+        }
+        if large_pool_threshold > 0 && cooling_period_secs == 0 {
+            return Err(ContractError::InvalidCoolingPeriod);
+        }
+        if max_pool_size > 0 && large_pool_threshold > 0 && max_pool_size < large_pool_threshold {
+            return Err(ContractError::InvalidBetAmount);
+        }
+
+        env.storage().persistent().set(&DataKey::MaxPoolSize, &max_pool_size);
+        env.storage()
+            .persistent()
+            .set(&DataKey::LargePoolThreshold, &large_pool_threshold);
+        env.storage()
+            .persistent()
+            .set(&DataKey::LargePoolCoolingPeriodSecs, &cooling_period_secs);
+
+        env.events().publish(
+            (Symbol::new(&env, "circuit_breaker_config_set"), event_version(&env)),
+            (max_pool_size, large_pool_threshold, cooling_period_secs),
+        );
+        Ok(())
+    }
+
+    /// Read current circuit breaker config.
+    pub fn get_circuit_breaker_config(env: Env) -> CircuitBreakerConfig {
+        CircuitBreakerConfig {
+            max_pool_size: env
+                .storage()
+                .persistent()
+                .get::<_, i128>(&DataKey::MaxPoolSize)
+                .unwrap_or(DEFAULT_MAX_POOL_SIZE_STROOPS),
+            large_pool_threshold: env
+                .storage()
+                .persistent()
+                .get::<_, i128>(&DataKey::LargePoolThreshold)
+                .unwrap_or(DEFAULT_LARGE_POOL_THRESHOLD_STROOPS),
+            cooling_period_secs: env
+                .storage()
+                .persistent()
+                .get::<_, u64>(&DataKey::LargePoolCoolingPeriodSecs)
+                .unwrap_or(DEFAULT_LARGE_POOL_COOLING_PERIOD_SECS),
+        }
+    }
+
+    /// Configure per-wallet rate limiting.
+    ///
+    /// Only treasury recipient may call this.
+    /// - `max_bets_per_window == 0` OR `window_secs == 0` disables limiter
+    /// - Otherwise both must be > 0
+    pub fn set_rate_limit_config(
+        env: Env,
+        caller: Address,
+        max_bets_per_window: u32,
+        window_secs: u64,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        let treasury_recipient: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::TreasuryRecipient)
+            .ok_or(ContractError::NotInitialized)?;
+        if caller != treasury_recipient {
+            return Err(ContractError::Unauthorized);
+        }
+        if (max_bets_per_window == 0 && window_secs > 0)
+            || (max_bets_per_window > 0 && window_secs == 0)
+        {
+            return Err(ContractError::InvalidRateLimitConfig);
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::RateLimitMaxBetsPerWindow, &max_bets_per_window);
+        env.storage()
+            .persistent()
+            .set(&DataKey::RateLimitWindowSecs, &window_secs);
+
+        env.events().publish(
+            (Symbol::new(&env, "rate_limit_config_set"), event_version(&env)),
+            (max_bets_per_window, window_secs),
+        );
+        Ok(())
+    }
+
+    /// Return configured per-wallet rate limiting thresholds.
+    pub fn get_rate_limit_config(env: Env) -> RateLimitConfig {
+        RateLimitConfig {
+            max_bets_per_window: env
+                .storage()
+                .persistent()
+                .get::<_, u32>(&DataKey::RateLimitMaxBetsPerWindow)
+                .unwrap_or(0),
+            window_secs: env
+                .storage()
+                .persistent()
+                .get::<_, u64>(&DataKey::RateLimitWindowSecs)
+                .unwrap_or(0),
+        }
+    }
+
+    /// Return live per-wallet usage against current rate-limit config.
+    pub fn get_wallet_rate_limit_status(env: Env, user: Address) -> WalletRateLimitStatus {
+        let cfg = Self::get_rate_limit_config(env.clone());
+        let now = env.ledger().timestamp();
+        let state = env
+            .storage()
+            .persistent()
+            .get::<_, WalletRateLimitState>(&DataKey::WalletRateLimit(user))
+            .unwrap_or(WalletRateLimitState {
+                window_start: now,
+                used: 0,
+            });
+        let (window_start, used) = if cfg.window_secs > 0
+            && now.saturating_sub(state.window_start) >= cfg.window_secs
+        {
+            (now, 0u32)
+        } else {
+            (state.window_start, state.used)
+        };
+        let remaining = cfg.max_bets_per_window.saturating_sub(used);
+
+        WalletRateLimitStatus {
+            max_bets_per_window: cfg.max_bets_per_window,
+            window_secs: cfg.window_secs,
+            window_start,
+            used,
+            remaining,
+        }
+    }
+
     /// #193 — Return the complete contract configuration in a single call.
     ///
     /// Provides all configuration values needed for frontend bootstrapping
@@ -792,6 +1104,23 @@ impl PredinexContract {
             .get::<_, Pool>(&DataKey::Pool(pool_id))
             .ok_or(ContractError::PoolNotFound)?;
 
+        if pool.status == PoolStatus::Frozen {
+            if let Some(cooling_until) = env
+                .storage()
+                .persistent()
+                .get::<_, u64>(&DataKey::PoolCoolingUntil(pool_id))
+            {
+                if env.ledger().timestamp() >= cooling_until {
+                    pool.status = PoolStatus::Open;
+                    env.storage()
+                        .persistent()
+                        .remove(&DataKey::PoolCoolingUntil(pool_id));
+                } else {
+                    return Err(ContractError::PoolIsFrozen);
+                }
+            }
+        }
+
         if pool.status != PoolStatus::Open {
             return Err(ContractError::PoolNotOpen);
         }
@@ -802,6 +1131,83 @@ impl PredinexContract {
 
         if outcome > 1 {
             return Err(ContractError::InvalidOutcome);
+        }
+
+        // Per-wallet rate limiting for abuse prevention.
+        let max_bets_per_window: u32 = env
+            .storage()
+            .persistent()
+            .get::<_, u32>(&DataKey::RateLimitMaxBetsPerWindow)
+            .unwrap_or(0);
+        let window_secs: u64 = env
+            .storage()
+            .persistent()
+            .get::<_, u64>(&DataKey::RateLimitWindowSecs)
+            .unwrap_or(0);
+        if max_bets_per_window > 0 && window_secs > 0 {
+            let now = env.ledger().timestamp();
+            let key = DataKey::WalletRateLimit(user.clone());
+            let mut rate_state = env
+                .storage()
+                .persistent()
+                .get::<_, WalletRateLimitState>(&key)
+                .unwrap_or(WalletRateLimitState {
+                    window_start: now,
+                    used: 0,
+                });
+
+            if now.saturating_sub(rate_state.window_start) >= window_secs {
+                rate_state.window_start = now;
+                rate_state.used = 0;
+            }
+            if rate_state.used >= max_bets_per_window {
+                return Err(ContractError::RateLimitExceeded);
+            }
+            rate_state.used = rate_state
+                .used
+                .checked_add(1)
+                .ok_or(ContractError::RateLimitExceeded)?;
+            env.storage().persistent().set(&key, &rate_state);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, POOL_BUMP_THRESHOLD, POOL_BUMP_TARGET);
+        }
+
+        // Enforce per-pool bet limits (admin-configurable).
+        let min_bet: i128 = env
+            .storage()
+            .persistent()
+            .get::<_, i128>(&DataKey::PoolMinBet(pool_id))
+            .unwrap_or(DEFAULT_MIN_BET_STROOPS);
+        let max_bet: i128 = env
+            .storage()
+            .persistent()
+            .get::<_, i128>(&DataKey::PoolMaxBet(pool_id))
+            .unwrap_or(DEFAULT_MAX_BET_STROOPS);
+
+        if min_bet > 0 && amount < min_bet {
+            return Err(ContractError::BetBelowMinBet);
+        }
+        // max_bet == 0 => no maximum.
+        if max_bet > 0 && amount > max_bet {
+            return Err(ContractError::BetAboveMaxBet);
+        }
+
+        let current_total = pool
+            .total_a
+            .checked_add(pool.total_b)
+            .ok_or(ContractError::PoolTotalOverflow)?;
+        let new_total = current_total
+            .checked_add(amount)
+            .ok_or(ContractError::PoolTotalOverflow)?;
+
+        let max_pool_size: i128 = env
+            .storage()
+            .persistent()
+            .get::<_, i128>(&DataKey::MaxPoolSize)
+            .unwrap_or(DEFAULT_MAX_POOL_SIZE_STROOPS);
+        if max_pool_size > 0 && new_total > max_pool_size {
+            return Err(ContractError::PoolSizeLimitExceeded);
         }
 
         let token_address = env
@@ -894,6 +1300,51 @@ impl PredinexContract {
                 total_no,
             },
         );
+
+        let large_pool_threshold: i128 = env
+            .storage()
+            .persistent()
+            .get::<_, i128>(&DataKey::LargePoolThreshold)
+            .unwrap_or(DEFAULT_LARGE_POOL_THRESHOLD_STROOPS);
+        let cooling_period_secs: u64 = env
+            .storage()
+            .persistent()
+            .get::<_, u64>(&DataKey::LargePoolCoolingPeriodSecs)
+            .unwrap_or(DEFAULT_LARGE_POOL_COOLING_PERIOD_SECS);
+        if large_pool_threshold > 0
+            && cooling_period_secs > 0
+            && new_total >= large_pool_threshold
+            && pool.status == PoolStatus::Open
+        {
+            let cooling_until = env
+                .ledger()
+                .timestamp()
+                .checked_add(cooling_period_secs)
+                .ok_or(ContractError::ExpiryOverflow)?;
+            pool.status = PoolStatus::Frozen;
+            env.storage().persistent().set(&DataKey::Pool(pool_id), &pool);
+            env.storage().persistent().extend_ttl(
+                &DataKey::Pool(pool_id),
+                POOL_BUMP_THRESHOLD,
+                POOL_BUMP_TARGET,
+            );
+            env.storage()
+                .persistent()
+                .set(&DataKey::PoolCoolingUntil(pool_id), &cooling_until);
+            env.storage().persistent().extend_ttl(
+                &DataKey::PoolCoolingUntil(pool_id),
+                POOL_BUMP_THRESHOLD,
+                POOL_BUMP_TARGET,
+            );
+            env.events().publish(
+                (
+                    Symbol::new(&env, "pool_cooling_started"),
+                    event_version(&env),
+                    pool_id,
+                ),
+                (cooling_until, new_total),
+            );
+        }
         Ok(())
     }
 
@@ -1806,6 +2257,9 @@ impl PredinexContract {
         pool.status = PoolStatus::Open;
         env.storage()
             .persistent()
+            .remove(&DataKey::PoolCoolingUntil(pool_id));
+        env.storage()
+            .persistent()
             .set(&DataKey::Pool(pool_id), &pool);
         env.storage().persistent().extend_ttl(
             &DataKey::Pool(pool_id),
@@ -1816,6 +2270,53 @@ impl PredinexContract {
         env.events().publish(
             (
                 Symbol::new(&env, "pool_unfrozen"),
+                event_version(&env),
+                pool_id,
+            ),
+            caller,
+        );
+        Ok(())
+    }
+
+    /// Treasury admin override for automatic cooling locks.
+    pub fn override_pool_cooling(
+        env: Env,
+        caller: Address,
+        pool_id: u32,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        let treasury_recipient: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::TreasuryRecipient)
+            .ok_or(ContractError::NotInitialized)?;
+        if caller != treasury_recipient {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let mut pool = env
+            .storage()
+            .persistent()
+            .get::<_, Pool>(&DataKey::Pool(pool_id))
+            .ok_or(ContractError::PoolNotFound)?;
+        if pool.status == PoolStatus::Frozen {
+            pool.status = PoolStatus::Open;
+            env.storage()
+                .persistent()
+                .set(&DataKey::Pool(pool_id), &pool);
+            env.storage().persistent().extend_ttl(
+                &DataKey::Pool(pool_id),
+                POOL_BUMP_THRESHOLD,
+                POOL_BUMP_TARGET,
+            );
+        }
+        env.storage()
+            .persistent()
+            .remove(&DataKey::PoolCoolingUntil(pool_id));
+
+        env.events().publish(
+            (
+                Symbol::new(&env, "pool_cooling_overridden"),
                 event_version(&env),
                 pool_id,
             ),
@@ -1836,6 +2337,47 @@ impl PredinexContract {
             );
         }
         pool
+    }
+
+    /// Return the per-pool bet limits (min/max) used by `place_bet`.
+    ///
+    /// When min/max were never explicitly set by the admin, returns defaults.
+    pub fn get_pool_bet_limits(env: Env, pool_id: u32) -> Option<PoolBetLimits> {
+        let pool_exists: Option<Pool> = env.storage().persistent().get(&DataKey::Pool(pool_id));
+        if pool_exists.is_none() {
+            return None;
+        }
+
+        let min_bet: i128 = env
+            .storage()
+            .persistent()
+            .get::<_, i128>(&DataKey::PoolMinBet(pool_id))
+            .unwrap_or(DEFAULT_MIN_BET_STROOPS);
+        let max_bet: i128 = env
+            .storage()
+            .persistent()
+            .get::<_, i128>(&DataKey::PoolMaxBet(pool_id))
+            .unwrap_or(DEFAULT_MAX_BET_STROOPS);
+
+        // Keep bet limit entries alive while the pool is being queried.
+        // Note: legacy pools may not have explicit entries set yet, so guard
+        // against missing keys.
+        if env.storage().persistent().has(&DataKey::PoolMinBet(pool_id)) {
+            env.storage().persistent().extend_ttl(
+                &DataKey::PoolMinBet(pool_id),
+                POOL_BUMP_THRESHOLD,
+                POOL_BUMP_TARGET,
+            );
+        }
+        if env.storage().persistent().has(&DataKey::PoolMaxBet(pool_id)) {
+            env.storage().persistent().extend_ttl(
+                &DataKey::PoolMaxBet(pool_id),
+                POOL_BUMP_THRESHOLD,
+                POOL_BUMP_TARGET,
+            );
+        }
+
+        Some(PoolBetLimits { min_bet, max_bet })
     }
 
     pub fn get_pool_count(env: Env) -> u32 {

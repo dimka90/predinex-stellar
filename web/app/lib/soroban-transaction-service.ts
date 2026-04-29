@@ -144,6 +144,37 @@ export class SorobanTransactionService {
     return this.executeWithFeePrompt(tx, wallet, onStageChange, onFeeEstimated);
   }
 
+  async setPoolBetLimits(
+    wallet: FreighterWalletClient,
+    contractId: string,
+    params: { poolId: number; minBetStroops: number; maxBetStroops: number },
+    onStageChange?: (stage: TxStage) => void,
+    onFeeEstimated?: (feeStroops: string) => Promise<boolean>
+  ): Promise<SorobanTxResult> {
+    if (!wallet.address) throw new Error('Wallet not connected');
+
+    const contract = new Contract(contractId);
+    const sourceAccount = await this.server.getAccount(wallet.address);
+
+    const tx = new TransactionBuilder(sourceAccount, {
+      fee: '1000',
+      networkPassphrase: this.networkPassphrase,
+    })
+      .addOperation(
+        contract.call(
+          'set_pool_bet_limits',
+          new Address(wallet.address).toScVal(),
+          nativeToScVal(params.poolId, { type: 'u32' }),
+          nativeToScVal(params.minBetStroops, { type: 'i128' }),
+          nativeToScVal(params.maxBetStroops, { type: 'i128' })
+        )
+      )
+      .setTimeout(30)
+      .build();
+
+    return this.executeWithFeePrompt(tx, wallet, onStageChange, onFeeEstimated);
+  }
+
   async claimWinnings(
     wallet: FreighterWalletClient,
     contractId: string,

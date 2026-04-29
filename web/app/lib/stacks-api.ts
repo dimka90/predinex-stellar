@@ -27,6 +27,16 @@ export interface Pool {
     outcomeB: string;
     totalA: number;
     totalB: number;
+    /**
+     * Per-pool bet minimum in raw token units (stroops).
+     * When absent (legacy pools / older deployments), the UI falls back to defaults.
+     */
+    minBet?: number;
+    /**
+     * Per-pool bet maximum in raw token units (stroops).
+     * A value of `0` may be treated as "no maximum" by the frontend.
+     */
+    maxBet?: number;
     settled: boolean;
     winningOutcome: number | undefined;
     expiry: number;

@@ -10,10 +10,11 @@ import { useEffect, useState, useCallback } from "react";
 import { useUserActivity } from "../../hooks/useUserActivity";
 import { predinexReadApi } from "../../lib/adapters/predinex-read-api";
 import type { Pool } from "../../lib/adapters/types";
-import { TrendingUp, Users, Clock, RefreshCw, AlertCircle } from "lucide-react";
+import { TrendingUp, Users, Clock, RefreshCw, AlertCircle, Star, StarOff } from "lucide-react";
 import { use } from "react";
 import ShareButton from "../../../components/ShareButton";
 import { TruncatedAddress } from "../../../components/TruncatedAddress";
+import { usePoolFavorites } from "../../lib/hooks/usePoolFavorites";
 
 export default function PoolDetails({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -21,6 +22,8 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
 
     const { address: stxAddress } = useWallet();
     const { activities, refresh: refreshActivity } = useUserActivity(stxAddress ?? undefined, 50);
+    const { isFavorite, toggleFavorite } = usePoolFavorites();
+    const favorite = isFavorite(poolId);
 
     const [pool, setPool] = useState<Pool | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -184,6 +187,23 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                     <div className="flex justify-between items-start mb-6">
                         <span className="text-xs font-mono text-muted-foreground">#POOL-{pool.id}</span>
                         <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                aria-label={favorite ? `Unfavorite pool #${poolId}` : `Favorite pool #${poolId}`}
+                                title={favorite ? 'Remove bookmark' : 'Bookmark pool'}
+                                onClick={() => toggleFavorite(poolId)}
+                                className={`p-2 rounded-lg border transition-colors ${
+                                    favorite
+                                        ? 'bg-yellow-400/10 border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/15'
+                                        : 'bg-muted/30 border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                }`}
+                            >
+                                {favorite ? (
+                                    <Star className="w-4 h-4" fill="currentColor" strokeWidth={2} />
+                                ) : (
+                                    <StarOff className="w-4 h-4" />
+                                )}
+                            </button>
                             <ShareButton
                                 title={pool.title}
                                 text={`Check out this prediction market: ${pool.title}`}

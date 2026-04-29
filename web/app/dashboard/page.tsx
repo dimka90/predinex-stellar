@@ -48,6 +48,10 @@ const ActiveBetsCard = dynamic(() => import('../components/dashboard/ActiveBetsC
   loading: () => <div className="h-48 bg-card/20 animate-pulse rounded-xl border border-border/50" />,
 });
 
+const FavoritePoolsCard = dynamic(() => import('../components/dashboard/FavoritePoolsCard'), {
+  loading: () => <div className="h-48 bg-card/20 animate-pulse rounded-xl border border-border/50" />,
+});
+
 function DashboardContent() {
   const { address: stxAddress, isConnected } = useWallet();
   const { claimTransactions, claim, feePrompt, setFeePrompt, stage, setStage } = useClaimWinnings(stxAddress);
@@ -93,6 +97,8 @@ function DashboardContent() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="p-8 rounded-3xl border border-border bg-card/40 glass shadow-xl">
+              <FavoritePoolsCard />
+              <div className="mt-8">
               <h2 className="text-2xl font-black mb-6 flex items-center gap-3">
                 <div className="w-2 h-6 bg-primary rounded-full" />
                 Active Bets
@@ -114,6 +120,7 @@ function DashboardContent() {
                   isLoading={betsLoading}
                 />
               )}
+              </div>
             </div>
             <div className="p-8 rounded-3xl border border-border bg-card/40 glass shadow-xl">
               {activities.length === 0 ? (

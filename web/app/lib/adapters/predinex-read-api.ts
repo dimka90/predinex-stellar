@@ -10,6 +10,7 @@ import {
   getPoolFromSoroban,
   getUserBetFromSoroban,
   getPoolCountFromSoroban,
+  getPoolBetLimitsFromSoroban,
   type Pool,
   type UserBetData,
 } from '../soroban-read-api';
@@ -63,7 +64,16 @@ async function getPool(poolId: number): Promise<Pool | null> {
   if (result.error) {
     console.error(`[predinexReadApi] Error fetching pool ${poolId}:`, result.error);
   }
-  return result.pool;
+
+  if (!result.pool) return null;
+
+  const limits = await getPoolBetLimitsFromSoroban(poolId);
+
+  return {
+    ...result.pool,
+    minBet: limits?.minBet,
+    maxBet: limits?.maxBet,
+  };
 }
 
 /**

@@ -163,6 +163,35 @@ export const predinexContract = {
   },
 
   /**
+   * Submit a `set_pool_bet_limits` Soroban contract call (admin/treasury).
+   */
+  async setPoolBetLimitsSoroban(params: {
+    wallet: FreighterWalletClient;
+    poolId: number;
+    minBetStroops: number;
+    maxBetStroops: number;
+    onStageChange?: (stage: TxStage) => void;
+    onFeeEstimated?: (feeStroops: string) => Promise<boolean>;
+  }): Promise<{ txHash: string }> {
+    const { soroban } = getRuntimeConfig();
+    const service = getSorobanService();
+
+    const result = await service.setPoolBetLimits(
+      params.wallet,
+      soroban.contractId,
+      { poolId: params.poolId, minBetStroops: params.minBetStroops, maxBetStroops: params.maxBetStroops },
+      params.onStageChange,
+      params.onFeeEstimated
+    );
+
+    if (result.status === 'FAILED') {
+      throw new Error(result.error || 'Transaction failed');
+    }
+
+    return { txHash: result.txHash };
+  },
+
+  /**
    * Submit a `claim_winnings` Soroban contract call (wallet prompt).
    */
   async claimWinningsSoroban(params: {

@@ -3,17 +3,13 @@
 import { useState } from 'react';
 import { useToast } from '../../providers/ToastProvider';
 import { predinexContract } from '../lib/adapters/predinex-contract';
-import { Loader2, Wallet, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Wallet, AlertCircle } from 'lucide-react';
 import type { Pool } from '@/app/lib/adapters/types';
 import { useWallet } from './WalletAdapterProvider';
 import { useNetworkMismatch } from '@/lib/hooks/useNetworkMismatch';
-import { useTxStatus } from '../lib/hooks/useTxStatus';
 import { TruncatedAddress } from '../../components/TruncatedAddress';
-import {
-    classifyConnectivityIssue,
-} from '../lib/network-errors';
 import { invalidateOnPlaceBet } from '../lib/cache-invalidation';
-import { toastMessages, connectivityErrorToast, showToastPayload } from '../../lib/toast-messages';
+import { toastMessages, showToastPayload } from '../../lib/toast-messages';
 import { TransactionFeeModal } from './TransactionFeeModal';
 import { TxStage } from '../lib/soroban-transaction-service';
 
@@ -32,8 +28,15 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
     const [feePrompt, setFeePrompt] = useState<{ feeStroops: string, resolve: (v: boolean) => void } | null>(null);
     const [stage, setStage] = useState<TxStage>('idle');
 
-    // Placeholder for XLM minimums
-    const MIN_BET_XLM = 0.1;
+    const STROOPS_PER_STX = 10_000_000;
+
+    // Per-pool limits (raw units) — optional for legacy pools.
+    const minBetStroops = pool.minBet ?? 0;
+    const maxBetStroops = pool.maxBet ?? 0;
+    const minBetStx = minBetStroops / STROOPS_PER_STX;
+    const hasMaxBet = maxBetStroops > 0;
+    const maxBetStx = hasMaxBet ? maxBetStroops / STROOPS_PER_STX : null;
+    const hasMinBet = minBetStroops > 0;
 
     // Derived directly from connection state — no effect needed for this mock value
     const walletBalance: number | null = isConnected ? 100.0 : null;
@@ -46,32 +49,38 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
             return;
         }
 
-        const amount = parseFloat(betAmount);
-        if (!betAmount || isNaN(amount) || amount <= 0) {
+        const amountStx = parseFloat(betAmount);
+        if (!betAmount || isNaN(amountStx) || amountStx <= 0) {
             showToastPayload(showToast, toastMessages.bet.invalidAmount);
             return;
         }
 
-        if (amount < MIN_BET_XLM) {
-            showToastPayload(showToast, toastMessages.bet.minBet());
+        const amountStroops = Math.floor(amountStx * STROOPS_PER_STX);
+
+        if (minBetStroops > 0 && amountStroops < minBetStroops) {
+            showToastPayload(showToast, toastMessages.bet.minBet(minBetStx));
+            return;
+        }
+
+        if (hasMaxBet && maxBetStroops > 0 && amountStroops > maxBetStroops) {
+            showToastPayload(showToast, toastMessages.bet.maxBet(maxBetStx ?? 0));
             return;
         }
 
         // Check wallet balance
-        if (walletBalance !== null && amount > walletBalance) {
+        if (walletBalance !== null && amountStx > walletBalance) {
             showToastPayload(showToast, toastMessages.bet.insufficientBalance(walletBalance));
             return;
         }
 
         setIsBetting(true);
-        const amountInStroops = Math.floor(parseFloat(betAmount) * 10_000_000);
 
         try {
             await predinexContract.placeBetSoroban({
                 wallet,
                 poolId,
                 outcome,
-                amountStroops: amountInStroops,
+                amountStroops,
                 onStageChange: (s) => setStage(s),
                 onFeeEstimated: (fee) => {
                     return new Promise((resolve) => {
@@ -89,7 +98,7 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
             setStage('idle');
             setFeePrompt(null);
             if (onBetSuccess) {
-                onBetSuccess(outcome, amountInStroops);
+                onBetSuccess(outcome, amountStroops);
             }
         } catch (error) {
             console.error("Bet transaction failed:", error);
@@ -161,11 +170,11 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
             )}
 
             {/* Balance Warning */}
-            {walletBalance !== null && walletBalance < MIN_BET_XLM && !isMismatch && (
+            {walletBalance !== null && walletBalance < minBetStx && !isMismatch && (
                 <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex gap-2">
                     <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
                     <p className="text-sm text-yellow-600">
-                        Insufficient balance to place bets. Minimum: {MIN_BET_XLM} XLM
+                        Insufficient balance to place bets. Minimum: {minBetStx} XLM
                     </p>
                 </div>
             )}
@@ -186,28 +195,34 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
                 <input
                     type="number"
                     step="0.1"
-                    min={String(MIN_BET_XLM)}
+                    min={hasMinBet ? String(minBetStx) : undefined}
+                    max={hasMaxBet && maxBetStx !== null ? String(maxBetStx) : undefined}
                     className="w-full bg-muted/50 border border-border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder="e.g., 10"
                     value={betAmount}
                     onChange={(e) => setBetAmount(e.target.value)}
-                    disabled={isBetting || (walletBalance !== null && walletBalance < MIN_BET_XLM) || isMismatch}
+                    disabled={isBetting || (walletBalance !== null && walletBalance < minBetStx) || isMismatch}
                     aria-label="Enter bet amount in XLM"
                 />
+                <p className="text-xs text-muted-foreground mt-2">
+                    Bet limits:{' '}
+                    {hasMinBet ? `Min ${minBetStx} XLM` : 'No minimum'}
+                    {hasMaxBet && maxBetStx !== null ? `, Max ${maxBetStx} XLM` : ', No maximum'}
+                </p>
             </div>
 
             {/* Bet Buttons */}
             <div className="grid grid-cols-2 gap-4">
                 <button
                     onClick={() => placeBet(0)}
-                    disabled={isBetting || (walletBalance !== null && walletBalance < MIN_BET_XLM) || isMismatch}
+                    disabled={isBetting || (walletBalance !== null && walletBalance < minBetStx) || isMismatch}
                     className="py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex justify-center items-center gap-2"
                 >
                     {isBetting ? <Loader2 className="w-5 h-5 animate-spin" /> : isMismatch ? 'Wrong Network' : `Bet on ${pool.outcomeA}`}
                 </button>
                 <button
                     onClick={() => placeBet(1)}
-                    disabled={isBetting || (walletBalance !== null && walletBalance < MIN_BET_XLM) || isMismatch}
+                    disabled={isBetting || (walletBalance !== null && walletBalance < minBetStx) || isMismatch}
                     className="py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex justify-center items-center gap-2"
                 >
                     {isBetting ? <Loader2 className="w-5 h-5 animate-spin" /> : isMismatch ? 'Wrong Network' : `Bet on ${pool.outcomeB}`}

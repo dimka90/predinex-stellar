@@ -33,6 +33,11 @@ export interface UserBetReadResult {
   error?: string;
 }
 
+export interface PoolBetLimits {
+  minBet: number;
+  maxBet: number;
+}
+
 // Raw pool data shape from Soroban contract
 interface RawSorobanPool {
   creator?: string;
@@ -55,6 +60,12 @@ interface RawSorobanUserBet {
   amount_a?: bigint | number | string;
   amount_b?: bigint | number | string;
   total_bet?: bigint | number | string;
+}
+
+// Raw per-pool bet limits returned by `get_pool_bet_limits`.
+interface RawSorobanBetLimits {
+  min_bet?: bigint | number | string;
+  max_bet?: bigint | number | string;
 }
 
 // ---------------------------------------------------------------------------
@@ -632,6 +643,62 @@ export async function getUserBetFromSoroban(
 }
 
 /**
+ * Get per-pool bet limits from the Soroban contract.
+ * Returns null if the pool doesn't exist or on error.
+ */
+export async function getPoolBetLimitsFromSoroban(
+  poolId: number,
+  config?: SorobanReadConfig
+): Promise<PoolBetLimits | null> {
+  try {
+    const cfg = config ?? getSorobanConfig();
+
+    if (!cfg.contractId) {
+      return null;
+    }
+
+    const rawResult = await simulateContractRead(
+      cfg.rpcUrl,
+      cfg.contractId,
+      'get_pool_bet_limits',
+      [poolId]
+    );
+
+    if (rawResult === null) {
+      return null;
+    }
+
+    let rawLimits: RawSorobanBetLimits | null = null;
+
+    if (typeof rawResult === 'object' && rawResult !== null) {
+      if (Array.isArray(rawResult)) {
+        // Option<PoolBetLimits> style: Some(value) => [value], None => []
+        if (rawResult.length === 0) return null;
+        rawLimits = rawResult[0] as RawSorobanBetLimits;
+      } else {
+        rawLimits = rawResult as RawSorobanBetLimits;
+      }
+    }
+
+    const toNumber = (v: bigint | number | string | undefined): number => {
+      if (v === undefined || v === null) return 0;
+      if (typeof v === 'bigint') return Number(v);
+      if (typeof v === 'string') return Number(v) || 0;
+      return v || 0;
+    };
+
+    return {
+      minBet: toNumber(rawLimits?.min_bet),
+      maxBet: toNumber(rawLimits?.max_bet),
+    };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    console.error(`Failed to fetch pool bet limits for pool ${poolId} from Soroban:`, error);
+    return null;
+  }
+}
+
+/**
  * Get the total pool count from the Soroban contract.
  */
 export async function getPoolCountFromSoroban(
@@ -688,6 +755,7 @@ function getSorobanConfig(): SorobanReadConfig {
 export const sorobanReadApi = {
   getPool: getPoolFromSoroban,
   getUserBet: getUserBetFromSoroban,
+  getPoolBetLimits: getPoolBetLimitsFromSoroban,
   getPoolCount: getPoolCountFromSoroban,
 };
 

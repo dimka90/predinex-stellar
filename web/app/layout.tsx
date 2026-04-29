@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { WalletAdapterProvider } from "./components/WalletAdapterProvider";
 import { ToastProvider } from "../providers/ToastProvider";
+import { ThemeProvider } from "./context/ThemeContext";
 import Footer from "./components/Footer";
 import MarketListPreloader from "./components/MarketListPreloader";
 
@@ -49,17 +50,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <WalletAdapterProvider>
-          <ToastProvider>
-            <MarketListPreloader />
-            {children}
-            <Footer />
-          </ToastProvider>
-        </WalletAdapterProvider>
+        <ThemeProvider>
+          <WalletAdapterProvider>
+            <ToastProvider>
+              <MarketListPreloader />
+              {children}
+              <Footer />
+            </ToastProvider>
+          </WalletAdapterProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
