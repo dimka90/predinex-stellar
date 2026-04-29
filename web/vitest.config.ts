@@ -10,6 +10,8 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     exclude: [
       ...configDefaults.exclude,
+      // Playwright suites are run via `npm run test:visual`, not Vitest.
+      'tests/visual/**',
       '**/stacks-api.test.ts',
       '**/market-discovery-network.test.ts',
     ],
