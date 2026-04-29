@@ -6,7 +6,7 @@ import AuthGuard from '../components/AuthGuard';
 import { useWallet } from '../components/WalletAdapterProvider';
 import { useToast } from '../../providers/ToastProvider';
 import { useLocalStorage } from '../lib/hooks/useLocalStorage';
-import { validatePoolCreationForm } from '../lib/validators';
+import { validatePoolCreationForm, validateField, getCharLimit, getHelpText } from '../lib/validators';
 import { predinexContract } from '../lib/adapters/predinex-contract';
 import { invalidateOnCreatePool } from '../lib/cache-invalidation';
 import { Loader2 } from 'lucide-react';
@@ -45,17 +45,28 @@ export default function CreateMarket() {
         EMPTY_DRAFT
     );
     const [errors, setErrors] = useState<FormErrors>({});
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [stage, setStage] = useState<TxStage>('idle');
     const [txId, setTxId] = useState<string | null>(null);
-    const [feePrompt, setFeePrompt] = useState<{ feeStroops: string, resolve: (v: boolean) => void } | null>(null);
+    const [feePrompt, setFeePrompt] = useState<{ feeStroops: string; resolve: (v: boolean) => void } | null>(null);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setDraft((prev) => ({ ...prev, [name]: value }));
-        if (errors[name as keyof CreateMarketDraft]) {
-            setErrors((prev) => ({ ...prev, [name]: undefined }));
-        }
+
+        // Real-time inline validation on change
+        const fieldError = validateField(name as keyof CreateMarketDraft, value);
+        setErrors((prev) => ({ ...prev, [name]: fieldError }));
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setTouched((prev) => ({ ...prev, [name]: true }));
+
+        // Validate on blur
+        const fieldError = validateField(name as keyof CreateMarketDraft, value);
+        setErrors((prev) => ({ ...prev, [name]: fieldError }));
     };
 
     const getStageLabel = (s: TxStage) => {
@@ -87,6 +98,14 @@ export default function CreateMarket() {
 
         if (!validation.valid) {
             setErrors(validation.errors as FormErrors);
+            // Mark all fields as touched
+            setTouched({
+                title: true,
+                description: true,
+                outcomeA: true,
+                outcomeB: true,
+                duration: true,
+            });
             return;
         }
 
@@ -105,7 +124,7 @@ export default function CreateMarket() {
                     return new Promise((resolve) => {
                         setFeePrompt({ feeStroops: fee, resolve });
                     });
-                }
+                },
             });
 
             setTxId(txHash);
@@ -121,6 +140,12 @@ export default function CreateMarket() {
             setFeePrompt(null);
         }
     };
+
+    const charCount = (value: string, max: number) => (
+        <span className={`text-xs ${value.length > max ? 'text-red-500' : value.length > max * 0.9 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+            {value.length}/{max}
+        </span>
+    );
 
     return (
         <main className="min-h-screen bg-background">
@@ -158,36 +183,61 @@ export default function CreateMarket() {
 
                             {/* Title */}
                             <div>
-                                <label htmlFor="title" className="block text-sm font-medium mb-1">Question / Title</label>
+                                <label htmlFor="title" className="block text-sm font-medium mb-1">
+                                    Question / Title
+                                </label>
                                 <input
                                     id="title"
                                     name="title"
                                     type="text"
                                     value={draft.title}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     placeholder="e.g. Will Bitcoin be above $100k by end of 2025?"
-                                    className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    aria-describedby={errors.title ? 'title-error' : undefined}
+                                    className={`w-full px-4 py-2 rounded-lg bg-background border focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                                        touched.title && errors.title ? 'border-red-500' : 'border-input'
+                                    }`}
+                                    aria-describedby={errors.title ? 'title-error' : 'title-help'}
+                                    aria-invalid={!!errors.title}
                                     autoComplete="off"
                                 />
-                                {errors.title && <p id="title-error" role="alert" className="mt-1 text-sm text-red-500">{errors.title}</p>}
-                                <p className="mt-1 text-xs text-muted-foreground">Draft saved locally and restored after refresh.</p>
+                                <div className="flex justify-between items-center mt-1">
+                                    {errors.title && touched.title ? (
+                                        <p id="title-error" role="alert" className="text-sm text-red-500">{errors.title}</p>
+                                    ) : (
+                                        <p id="title-help" className="text-xs text-muted-foreground">{getHelpText('title')}</p>
+                                    )}
+                                    {charCount(draft.title, 100)}
+                                </div>
                             </div>
 
                             {/* Description */}
                             <div>
-                                <label htmlFor="description" className="block text-sm font-medium mb-1">Description</label>
+                                <label htmlFor="description" className="block text-sm font-medium mb-1">
+                                    Description
+                                </label>
                                 <textarea
                                     id="description"
                                     name="description"
                                     rows={3}
                                     value={draft.description}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     placeholder="Provide context and resolution criteria for this market."
-                                    className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                                    aria-describedby={errors.description ? 'description-error' : undefined}
+                                    className={`w-full px-4 py-2 rounded-lg bg-background border focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none ${
+                                        touched.description && errors.description ? 'border-red-500' : 'border-input'
+                                    }`}
+                                    aria-describedby={errors.description ? 'description-error' : 'description-help'}
+                                    aria-invalid={!!errors.description}
                                 />
-                                {errors.description && <p id="description-error" role="alert" className="mt-1 text-sm text-red-500">{errors.description}</p>}
+                                <div className="flex justify-between items-center mt-1">
+                                    {errors.description && touched.description ? (
+                                        <p id="description-error" role="alert" className="text-sm text-red-500">{errors.description}</p>
+                                    ) : (
+                                        <p id="description-help" className="text-xs text-muted-foreground">{getHelpText('description')}</p>
+                                    )}
+                                    {charCount(draft.description, 500)}
+                                </div>
                             </div>
 
                             {/* Outcomes */}
@@ -200,11 +250,22 @@ export default function CreateMarket() {
                                         type="text"
                                         value={draft.outcomeA}
                                         onChange={handleChange}
+                                        onBlur={handleBlur}
                                         placeholder="e.g. Yes"
-                                        className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                        aria-describedby={errors.outcomeA ? 'outcomeA-error' : undefined}
+                                        className={`w-full px-4 py-2 rounded-lg bg-background border focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                                            touched.outcomeA && errors.outcomeA ? 'border-red-500' : 'border-input'
+                                        }`}
+                                        aria-describedby={errors.outcomeA ? 'outcomeA-error' : 'outcomeA-help'}
+                                        aria-invalid={!!errors.outcomeA}
                                     />
-                                    {errors.outcomeA && <p id="outcomeA-error" role="alert" className="mt-1 text-sm text-red-500">{errors.outcomeA}</p>}
+                                    <div className="flex justify-between items-center mt-1">
+                                        {errors.outcomeA && touched.outcomeA ? (
+                                            <p id="outcomeA-error" role="alert" className="text-sm text-red-500">{errors.outcomeA}</p>
+                                        ) : (
+                                            <p id="outcomeA-help" className="text-xs text-muted-foreground">{getHelpText('outcomeA')}</p>
+                                        )}
+                                        {charCount(draft.outcomeA, 50)}
+                                    </div>
                                 </div>
                                 <div>
                                     <label htmlFor="outcomeB" className="block text-sm font-medium mb-1">Outcome B</label>
@@ -214,11 +275,22 @@ export default function CreateMarket() {
                                         type="text"
                                         value={draft.outcomeB}
                                         onChange={handleChange}
+                                        onBlur={handleBlur}
                                         placeholder="e.g. No"
-                                        className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                        aria-describedby={errors.outcomeB ? 'outcomeB-error' : undefined}
+                                        className={`w-full px-4 py-2 rounded-lg bg-background border focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                                            touched.outcomeB && errors.outcomeB ? 'border-red-500' : 'border-input'
+                                        }`}
+                                        aria-describedby={errors.outcomeB ? 'outcomeB-error' : 'outcomeB-help'}
+                                        aria-invalid={!!errors.outcomeB}
                                     />
-                                    {errors.outcomeB && <p id="outcomeB-error" role="alert" className="mt-1 text-sm text-red-500">{errors.outcomeB}</p>}
+                                    <div className="flex justify-between items-center mt-1">
+                                        {errors.outcomeB && touched.outcomeB ? (
+                                            <p id="outcomeB-error" role="alert" className="text-sm text-red-500">{errors.outcomeB}</p>
+                                        ) : (
+                                            <p id="outcomeB-help" className="text-xs text-muted-foreground">{getHelpText('outcomeB')}</p>
+                                        )}
+                                        {charCount(draft.outcomeB, 50)}
+                                    </div>
                                 </div>
                             </div>
 
@@ -232,11 +304,19 @@ export default function CreateMarket() {
                                     min={300}
                                     value={draft.duration}
                                     onChange={handleChange}
+                                    onBlur={handleBlur}
                                     placeholder="e.g. 86400 (1 day on Stellar)"
-                                    className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    aria-describedby={errors.duration ? 'duration-error' : undefined}
+                                    className={`w-full px-4 py-2 rounded-lg bg-background border focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                                        touched.duration && errors.duration ? 'border-red-500' : 'border-input'
+                                    }`}
+                                    aria-describedby={errors.duration ? 'duration-error' : 'duration-help'}
+                                    aria-invalid={!!errors.duration}
                                 />
-                                {errors.duration && <p id="duration-error" role="alert" className="mt-1 text-sm text-red-500">{errors.duration}</p>}
+                                {errors.duration && touched.duration ? (
+                                    <p id="duration-error" role="alert" className="mt-1 text-sm text-red-500">{errors.duration}</p>
+                                ) : (
+                                    <p id="duration-help" className="mt-1 text-xs text-muted-foreground">{getHelpText('duration')}</p>
+                                )}
                             </div>
 
                             {/* Category */}
