@@ -14,6 +14,8 @@ import {
 } from '../lib/network-errors';
 import { invalidateOnPlaceBet } from '../lib/cache-invalidation';
 import { toastMessages, connectivityErrorToast, showToastPayload } from '../../lib/toast-messages';
+import { TransactionFeeModal } from './TransactionFeeModal';
+import { TxStage } from '../lib/soroban-transaction-service';
 
 // Minimum bet amount in STX
 const MIN_BET_STX = 0.1;
@@ -25,10 +27,13 @@ interface BettingSectionProps {
 }
 
 export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSectionProps) {
-    const { isConnected, address, connect } = useWallet();
+    const wallet = useWallet();
+    const { isConnected, address, connect } = wallet;
     const { showToast } = useToast();
     const [betAmount, setBetAmount] = useState("");
     const [isBetting, setIsBetting] = useState(false);
+    const [feePrompt, setFeePrompt] = useState<{ feeStroops: string, resolve: (v: boolean) => void } | null>(null);
+    const [stage, setStage] = useState<TxStage>('idle');
 
     // Placeholder for XLM minimums
     const MIN_BET_XLM = 0.1;
@@ -63,30 +68,36 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
         const amountInStroops = Math.floor(parseFloat(betAmount) * 10_000_000);
 
         try {
-            await predinexContract.placeBet({
+            await predinexContract.placeBetSoroban({
+                wallet,
                 poolId,
                 outcome,
-                amountMicroStx: amountInStroops,
-                onFinish: () => {
-                    if (address) {
-                        invalidateOnPlaceBet({ poolId, userAddress: address });
-                    }
-                    showToast('Bet placed successfully!', 'success');
-                    setIsBetting(false);
-                    setBetAmount("");
-                    if (onBetSuccess) {
-                        onBetSuccess(outcome, amountInStroops);
-                    }
-                },
-                onCancel: () => {
-                    showToast('Transaction cancelled', 'info');
-                    setIsBetting(false);
-                },
+                amountStroops: amountInStroops,
+                onStageChange: (s) => setStage(s),
+                onFeeEstimated: (fee) => {
+                    return new Promise((resolve) => {
+                        setFeePrompt({ feeStroops: fee, resolve });
+                    });
+                }
             });
+            
+            if (address) {
+                invalidateOnPlaceBet({ poolId, userAddress: address });
+            }
+            showToast('Bet placed successfully!', 'success');
+            setIsBetting(false);
+            setBetAmount("");
+            setStage('idle');
+            setFeePrompt(null);
+            if (onBetSuccess) {
+                onBetSuccess(outcome, amountInStroops);
+            }
         } catch (error) {
             console.error("Bet transaction failed:", error);
-            showToast('Failed to place bet', 'error');
+            showToast(`Failed to place bet: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
             setIsBetting(false);
+            setStage('idle');
+            setFeePrompt(null);
         }
     };
 
@@ -118,6 +129,22 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
 
     return (
         <div className="space-y-4">
+            <TransactionFeeModal
+                isOpen={!!feePrompt}
+                actionName="Place Bet"
+                feeStroops={feePrompt?.feeStroops || '0'}
+                onConfirm={() => {
+                    feePrompt?.resolve(true);
+                    setFeePrompt(null);
+                }}
+                onCancel={() => {
+                    feePrompt?.resolve(false);
+                    setFeePrompt(null);
+                    setIsBetting(false);
+                    setStage('idle');
+                }}
+                isConfirming={stage === 'signing' || stage === 'submitting' || stage === 'polling'}
+            />
             {/* Wallet Info */}
             {isConnected && address && (
                 <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
