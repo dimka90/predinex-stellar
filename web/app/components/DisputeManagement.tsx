@@ -1,13 +1,16 @@
 'use client';
 
+import React from 'react';
 import dynamic from 'next/dynamic';
 import { useWallet } from './WalletAdapterProvider';
 import { useDisputeManagement } from '../lib/disputes/useDisputeManagement';
 import { DisputePageHeader } from './disputes/DisputePageHeader';
 import { DisputeTabNav } from './disputes/DisputeTabNav';
 import { ActiveDisputesSection } from './disputes/ActiveDisputesSection';
+import { DisputeUnavailable } from './disputes/DisputeUnavailable';
 import { DisconnectedState } from '../../components/DisconnectedState';
 import { EmptyState } from '../../components/EmptyState';
+import { isDisputeMockDataEnabled } from '../lib/feature-flags';
 
 function TabPanelSkeleton() {
   return (
@@ -36,6 +39,11 @@ export default function DisputeManagement() {
 
   if (!isConnected) {
     return <DisconnectedState />;
+  }
+
+  // Show unavailable state if feature is disabled and no real disputes exist
+  if (!isDisputeMockDataEnabled() && disputes.length === 0) {
+    return <DisputeUnavailable />;
   }
 
   return (
