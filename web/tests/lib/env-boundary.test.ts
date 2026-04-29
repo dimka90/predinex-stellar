@@ -9,7 +9,10 @@ import {
 
 const CLIENT_SOURCE_ROOTS = ['app', 'lib'];
 const SOURCE_FILE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
-const ENV_ACCESS_PATTERN = /process\.env\.([A-Z0-9_]+)/g;
+// Matches both:
+// - process.env.MY_KEY
+// - process.env?.MY_KEY
+const ENV_ACCESS_PATTERN = /process\.env\??\.([A-Z0-9_]+)/g;
 
 function walkSourceFiles(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
