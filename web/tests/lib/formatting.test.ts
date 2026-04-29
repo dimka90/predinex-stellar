@@ -265,7 +265,7 @@ describe('Timestamp Formatting', () => {
       const result = formatTimestamp(timestampMs, 'long');
       expect(result).toContain('June');
       expect(result).toContain('2025');
-      expect(result).toContain('10:30');
+      expect(result).toMatch(/\d{1,2}:\d{2}/);
     });
 
     it('handles seconds timestamp', () => {

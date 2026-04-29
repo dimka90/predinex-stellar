@@ -1,3 +1,7 @@
-export function EmptyState({ message }) {
+interface EmptyStateProps {
+  message: string;
+}
+
+export function EmptyState({ message }: EmptyStateProps) {
   return <p>{message}</p>;
 }

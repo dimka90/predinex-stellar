@@ -7,7 +7,6 @@ import { useNetworkMismatch } from '@/lib/hooks/useNetworkMismatch';
 import { Loader2, AlertCircle, CheckCircle, TrendingUp, Users, RefreshCw } from 'lucide-react';
 import { formatDisplayAddress } from '../lib/address-display';
 import { getMarkets, type Pool } from '../lib/stacks-api';
-import { formatXlmAmount, stroopsToXlm } from '@/app/lib/formatting';
 
 interface PoolStats {
   totalPools: number;
@@ -18,7 +17,7 @@ interface PoolStats {
 
 export default function PoolIntegration() {
   const router = useRouter();
-  const { isConnected } = useWallet();
+  const { isConnected, connect } = useWallet();
   const { isMismatch, expectedNetworkName } = useNetworkMismatch();
   const [pools, setPools] = useState<Pool[]>([]);
   const [stats, setStats] = useState<PoolStats>({
@@ -69,14 +68,8 @@ export default function PoolIntegration() {
     };
   };
 
-  const formatAmount = (stroops: number) => {
-    return stroopsToXlm(stroops).toFixed(2);
-  };
-
-  const formatBlocksRemaining = (expiry: number) => {
-    // TODO: Calculate actual blocks remaining based on current block height
-    // For now, just show the expiry block number
-    return `Block ${expiry}`;
+  const formatXLM = (stroops: number) => {
+    return (stroops / 10_000_000).toFixed(2);
   };
 
   return (
@@ -103,7 +96,7 @@ export default function PoolIntegration() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total Volume</p>
-              <p className="text-3xl font-bold">{formatAmount(stats.totalVolume)} XLM</p>
+              <p className="text-3xl font-bold">{formatXLM(stats.totalVolume)} XLM</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-500 opacity-50" />
           </div>
@@ -186,7 +179,7 @@ export default function PoolIntegration() {
                         : 'bg-green-500/10 border-green-500/20'
                       }`}>
                       <p className="text-sm text-muted-foreground mb-2">{pool.outcomeA}</p>
-                      <p className="text-2xl font-bold text-green-400">{formatAmount(pool.totalA)} XLM</p>
+                      <p className="text-2xl font-bold text-green-400">{formatXLM(pool.totalA)} XLM</p>
                       <p className="text-xs text-muted-foreground mt-1">{odds.a}% of pool</p>
                       {pool.settled && pool.winningOutcome === 0 && (
                         <p className="text-xs text-green-400 font-bold mt-2">✓ Winner</p>
@@ -197,7 +190,7 @@ export default function PoolIntegration() {
                         : 'bg-red-500/10 border-red-500/20'
                       }`}>
                       <p className="text-sm text-muted-foreground mb-2">{pool.outcomeB}</p>
-                      <p className="text-2xl font-bold text-red-400">{formatAmount(pool.totalB)} XLM</p>
+                      <p className="text-2xl font-bold text-red-400">{formatXLM(pool.totalB)} XLM</p>
                       <p className="text-xs text-muted-foreground mt-1">{odds.b}% of pool</p>
                       {pool.settled && pool.winningOutcome === 1 && (
                         <p className="text-xs text-red-400 font-bold mt-2">✓ Winner</p>
@@ -208,22 +201,22 @@ export default function PoolIntegration() {
                   {/* Pool Info */}
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Creator: {formatDisplayAddress(pool.creator)}</span>
-                    <span>Expires: {formatBlocksRemaining(pool.expiry)}</span>
+                    <span>Expires in {pool.expiry} seconds</span>
                   </div>
 
                   {/* Action Button */}
-                  {!pool.settled && pool.status === 'active' && isConnected && (
+                  {!pool.settled && (
                     <div className="space-y-2">
-                      <button
+                      <button 
+                        onClick={isMismatch ? undefined : (isConnected ? () => {} : connect)}
                         disabled={isMismatch}
-                        onClick={() => router.push(`/markets/${pool.id}`)}
                         className="w-full py-2 bg-primary hover:bg-violet-600 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isMismatch ? 'Wrong Network' : 'Place Bet'}
+                        {isMismatch ? 'Wrong Network' : isConnected ? 'Place Bet' : 'Connect Wallet'}
                       </button>
                       {isMismatch && (
-                        <p className="text-xs text-red-500 font-medium text-center">
-                          Please switch to {expectedNetworkName} to interact.
+                        <p className="text-[10px] text-center text-yellow-500 font-medium">
+                          Please switch to {expectedNetworkName} to interact
                         </p>
                       )}
                     </div>

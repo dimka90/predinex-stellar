@@ -1,11 +1,13 @@
 'use client';
 
+import Link from "next/link";
 import Navbar from "../../components/Navbar";
 import BettingSection from "../../components/BettingSection";
 import ClaimWinningsButton from "../../../components/ClaimWinningsButton";
 import SettledPoolSummary from "../../components/SettledPoolSummary";
 import { useWallet } from "../../components/WalletAdapterProvider";
 import { useEffect, useState, useCallback } from "react";
+import { useUserActivity } from "../../hooks/useUserActivity";
 import { predinexReadApi } from "../../lib/adapters/predinex-read-api";
 import type { Pool } from "../../lib/adapters/types";
 import { TrendingUp, Users, Clock, RefreshCw, AlertCircle } from "lucide-react";
@@ -18,6 +20,7 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
     const poolId = parseInt(id);
 
     const { address: stxAddress } = useWallet();
+    const { activities, refresh: refreshActivity } = useUserActivity(stxAddress ?? undefined, 50);
 
     const [pool, setPool] = useState<Pool | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -43,11 +46,14 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
     }, [poolId]);
 
     useEffect(() => {
-        if (stxAddress && poolId) {
-            predinexReadApi.getUserBet(poolId, stxAddress).then(bet => {
-                setUserBet(bet);
-            }).catch(() => setUserBet(null));
+        if (!stxAddress || !poolId) {
+            setUserBet(null);
+            return;
         }
+
+        predinexReadApi.getUserBet(poolId, stxAddress).then(bet => {
+            setUserBet(bet);
+        }).catch(() => setUserBet(null));
     }, [stxAddress, poolId]);
 
     const refreshPoolData = useCallback(async () => {
@@ -62,7 +68,10 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
             ]);
 
             if (newPool) setPool(newPool);
-            if (newBet) setUserBet(newBet);
+            setUserBet(newBet);
+            if (stxAddress) {
+                await refreshActivity();
+            }
             // Clear error if refresh succeeds
             setError(null);
         } catch (err) {
@@ -73,7 +82,7 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
         } finally {
             setIsRefreshing(false);
         }
-    }, [poolId, stxAddress, isRefreshing]);
+    }, [poolId, refreshActivity, stxAddress, isRefreshing]);
 
     const handleBetSuccess = (outcome: number, amountMicroSTX: number) => {
         // Optimistic update
@@ -94,9 +103,13 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
         refreshPoolData();
     };
 
-    const userHasWinnings = pool?.settled && userBet &&
+    const hasClaimedWinnings = activities.some(
+        (activity) => activity.type === 'winnings-claimed' && activity.poolId === poolId
+    );
+    const userWonBet = pool?.settled && userBet &&
         ((pool.winningOutcome === 0 && userBet.amountA > 0) ||
             (pool.winningOutcome === 1 && userBet.amountB > 0));
+    const userHasWinnings = !!userWonBet && !hasClaimedWinnings;
 
 
 
@@ -146,12 +159,12 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                     <p className="text-muted-foreground text-center max-w-md mb-6">
                         Pool #{poolId} does not exist on the Soroban contract. It may have been removed or the ID may be incorrect.
                     </p>
-                    <a
+                    <Link
                         href="/markets"
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
                     >
                         Back to Markets
-                    </a>
+                    </Link>
                 </div>
             </main>
         );
@@ -247,6 +260,11 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                                     Winner: {pool.winningOutcome === 0 ? pool.outcomeA : pool.outcomeB}
                                 </div>
                             )}
+                            {pool.settled && hasClaimedWinnings && (
+                                <div className="mt-2 text-sm text-primary" role="status">
+                                    Winnings already claimed for this market.
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -257,7 +275,7 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                             <ClaimWinningsButton
                                 poolId={poolId}
                                 isSettled={pool.settled}
-                                userHasWinnings={!!userHasWinnings}
+                                userHasWinnings={userHasWinnings}
                                 userAddress={stxAddress}
                                 onClaimSuccess={refreshPoolData}
                             />

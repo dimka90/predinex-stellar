@@ -8,12 +8,54 @@
  * @param title Pool title
  * @returns Validation result
  */
-import { MAX_POOL_DURATION_SECONDS } from './constants';
+import { MAX_POOL_DURATION_SECONDS as MAX_POOL_DURATION_SECS } from './constants';
+
+
 export const MAX_TITLE_LENGTH = 100;
 export const MAX_DESCRIPTION_LENGTH = 1000;
 export const MAX_OUTCOME_LENGTH = 50;
 export const MIN_POOL_DURATION_SECS = 300;
-export const MAX_POOL_DURATION_SECS = MAX_POOL_DURATION_SECONDS;
+export { MAX_POOL_DURATION_SECS };
+
+/**
+ * Validate a Stacks contract identifier in `<address>.<name>` form.
+ * The address prefix must match the target network when specified.
+ */
+export function validateContractId(
+  contractId: string,
+  network?: 'mainnet' | 'testnet' | 'devnet'
+): { valid: boolean; error?: string } {
+  if (!contractId || contractId.trim().length === 0) {
+    return { valid: false, error: 'Contract identifier is required' };
+  }
+
+  const trimmed = contractId.trim();
+  const separatorIndex = trimmed.indexOf('.');
+  if (separatorIndex <= 0 || separatorIndex === trimmed.length - 1) {
+    return { valid: false, error: 'Contract identifier must be in <address>.<name> format' };
+  }
+
+  const address = trimmed.slice(0, separatorIndex);
+  const name = trimmed.slice(separatorIndex + 1);
+
+  if (!/^(SP|ST)[A-Z0-9]{10,}$/.test(address)) {
+    return { valid: false, error: 'Invalid Stacks contract address format' };
+  }
+
+  if (!/^[a-zA-Z][a-zA-Z0-9-]*$/.test(name)) {
+    return { valid: false, error: 'Invalid contract name format' };
+  }
+
+  if (network === 'mainnet' && !address.startsWith('SP')) {
+    return { valid: false, error: 'Mainnet contract addresses must start with SP' };
+  }
+
+  if ((network === 'testnet' || network === 'devnet') && !address.startsWith('ST')) {
+    return { valid: false, error: 'Testnet/devnet contract addresses must start with ST' };
+  }
+
+  return { valid: true };
+}
 
 export function validatePoolTitle(title: string): { valid: boolean; error?: string } {
   if (!title || title.trim().length === 0) {
@@ -104,25 +146,25 @@ export function validateBetAmount(amount: number): { valid: boolean; error?: str
     return { valid: false, error: 'Amount must be greater than 0' };
   }
   if (amount < 0.1) {
-    return { valid: false, error: 'Minimum bet is 0.1 STX' };
+    return { valid: false, error: 'Minimum bet is 0.1 XLM' };
   }
   if (amount > 1000000) {
-    return { valid: false, error: 'Maximum bet is 1,000,000 STX' };
+    return { valid: false, error: 'Maximum bet is 1,000,000 XLM' };
   }
   return { valid: true };
 }
 
 /**
  * Validate Stellar address format
- * @param address Stellar address
+ * @param address Stellar address (G... strkey)
  * @returns Validation result
  */
 export function validateStellarAddress(address: string): { valid: boolean; error?: string } {
   if (!address) {
     return { valid: false, error: 'Address is required' };
   }
-  // Stellar addresses start with G (public keys) or C (contracts), 56 characters total
-  if (!address.match(/^[GC][A-Z0-9]{55}$/)) {
+  // Stellar strkeys use base32 characters A-Z and 2-7.
+  if (!address.match(/^[GC][A-Z2-7]{55}$/)) {
     return { valid: false, error: 'Invalid Stellar address format' };
   }
   return { valid: true };
@@ -145,7 +187,7 @@ export function validateStellarContractAddress(
   const address = contractAddress.trim();
 
   // Validate Stellar contract address format (C prefix, 56 chars total)
-  if (!/^C[A-Z0-9]{55}$/.test(address)) {
+  if (!/^C[A-Z2-7]{55}$/.test(address)) {
     return {
       valid: false,
       error: `Invalid Stellar contract address '${address}'. Stellar contract addresses must be 56 characters starting with 'C'.`,

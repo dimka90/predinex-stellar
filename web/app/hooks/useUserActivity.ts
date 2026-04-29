@@ -49,6 +49,7 @@ export function useUserActivity(
         try {
             const data = await predinexReadApi.getUserActivitySoroban(address, limit);
             setActivities(data);
+            userActivityCache.set(address, data, REFRESH_INTERVAL_MS);
         } catch (e) {
             setError('Failed to load activity. Please try again.');
             console.error('useUserActivity error:', e);

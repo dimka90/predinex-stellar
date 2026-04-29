@@ -102,13 +102,13 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
   
   useEffect(() => {
     if (!userAddress) return;
+    const address = userAddress;
     
     async function loadIncentives() {
       setIsLoading(true);
       try {
-        const contractIncentives = await fetchIncentivesFromContract(userAddress);
-
-        const pendingIncentives = await calculateRealIncentives(userAddress, poolId || 0);
+        const contractIncentives = await fetchIncentivesFromContract(address);
+        const pendingIncentives = await calculateRealIncentives(address, poolId || 0);
         
         const allIncentives: BetterIncentive[] = [
           ...contractIncentives.map(inc => ({
@@ -134,7 +134,7 @@ export default function IncentivesDisplay({ betterId, poolId }: IncentivesDispla
     }
     
     loadIncentives();
-  }, [userAddress, poolId]);
+  }, [userAddress, poolId, setIncentives]);
 
   const handleClaim = useCallback(async (incentiveId: number) => {
     try {

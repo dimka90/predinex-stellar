@@ -2128,9 +2128,9 @@ fn claim_status_loser_is_not_eligible_not_never_bet() {
     assert_ne!(loser_status, never_bet_status);
 }
 
-/// Voided pool: RefundClaimable → AlreadyClaimed after claim_refund.
+/// Cancelled pool: RefundClaimable → AlreadyClaimed after claim_refund.
 #[test]
-fn claim_status_voided_pool_transitions() {
+fn claim_status_cancelled_pool_transitions() {
     let t = setup();
     let pool_id = make_pool(&t);
 
@@ -2139,7 +2139,7 @@ fn claim_status_voided_pool_transitions() {
     token_admin.mint(&user, &200);
 
     t.client.place_bet(&user, &pool_id, &0, &200);
-    t.client.void_pool(&t.admin, &pool_id);
+    t.client.cancel_pool(&t.admin, &pool_id);
 
     assert_eq!(
         t.client.get_claim_status(&pool_id, &user),
@@ -2240,15 +2240,26 @@ fn i1_cancel_pool_before_bets_succeeds() {
     );
 }
 
-/// I2: Cancellation is rejected once the first bet has been placed.
+/// I2: Creator can cancel a pool after bets have been placed.
 #[test]
 #[should_panic]
 fn i2_cancel_pool_after_first_bet_rejected() {
+fn i2_cancel_pool_after_bets_succeeds() {
     let t = setup();
     let pool_id = make_pool(&t);
 
     t.client.place_bet(&t.user, &pool_id, &0u32, &100i128);
     t.client.cancel_pool(&t.admin, &pool_id);
+
+    let pool_after = t
+        .client
+        .get_pool(&pool_id)
+        .expect("pool must still exist after cancel");
+    assert_eq!(
+        pool_after.status,
+        PoolStatus::Cancelled,
+        "status must be Cancelled after creator cancels"
+    );
 }
 
 /// I3: A non-creator cannot cancel the pool.
@@ -2769,8 +2780,6 @@ fn l5_claim_winnings_emits_claim_event() {
 // Issue #187: Metadata validation tests
 // ============================================================================
 
-
-
 // ============================================================================
 // Issue #193: Contract configuration read method tests
 //
@@ -2833,7 +2842,7 @@ fn test_create_pool_exceeds_title_length() {
     let t = setup();
     let long_title_str = std::string::String::from_utf8(std::vec![b'A'; 101]).unwrap();
     let long_title = String::from_str(&t.env, &long_title_str);
-    
+
     t.client.create_pool(
         &t.admin,
         &long_title,
@@ -2850,7 +2859,7 @@ fn test_create_pool_exceeds_description_length() {
     let t = setup();
     let long_desc_str = std::string::String::from_utf8(std::vec![b'B'; 1001]).unwrap();
     let long_desc = String::from_str(&t.env, &long_desc_str);
-    
+
     t.client.create_pool(
         &t.admin,
         &String::from_str(&t.env, "Title"),
@@ -2867,7 +2876,7 @@ fn test_create_pool_exceeds_outcome_length() {
     let t = setup();
     let long_outcome_str = std::string::String::from_utf8(std::vec![b'C'; 51]).unwrap();
     let long_outcome = String::from_str(&t.env, &long_outcome_str);
-    
+
     t.client.create_pool(
         &t.admin,
         &String::from_str(&t.env, "Title"),
@@ -2881,12 +2890,12 @@ fn test_create_pool_exceeds_outcome_length() {
 #[test]
 fn test_create_pool_max_lengths_accepted() {
     let t = setup();
-    
+
     let title_str = std::string::String::from_utf8(std::vec![b'T'; 100]).unwrap();
     let desc_str = std::string::String::from_utf8(std::vec![b'D'; 1000]).unwrap();
     let out_a_str = std::string::String::from_utf8(std::vec![b'A'; 50]).unwrap();
     let out_b_str = std::string::String::from_utf8(std::vec![b'B'; 50]).unwrap();
-    
+
     let pool_id = t.client.create_pool(
         &t.admin,
         &String::from_str(&t.env, &title_str),
@@ -2895,7 +2904,7 @@ fn test_create_pool_max_lengths_accepted() {
         &String::from_str(&t.env, &out_b_str),
         &3_600u64,
     );
-    
+
     let pool = t.client.get_pool(&pool_id).unwrap();
     assert_eq!(pool.title.len(), 100);
     assert_eq!(pool.description.len(), 1000);

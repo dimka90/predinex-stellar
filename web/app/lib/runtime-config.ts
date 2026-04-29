@@ -1,6 +1,5 @@
 import { WALLETCONNECT_CONFIG } from './walletconnect-config';
 import { NETWORK_CONFIG as ANALYTICS_NETWORK_CONFIG } from './analytics/config';
-import { validateStellarContractAddress } from './validators';
 
 export type SupportedNetwork = 'mainnet' | 'testnet';
 
@@ -38,14 +37,7 @@ export type RuntimeConfig = {
   soroban: SorobanConfig;
 };
 
-function getRequiredEnv(name: string): string {
-  const env =
-    typeof process !== 'undefined' && process.env ? process.env[name] : undefined;
-  if (!env) {
-    throw new Error(`Missing required config: ${name}. Set ${name} to 'mainnet' or 'testnet'.`);
-  }
-  return env;
-}
+const DEFAULT_NETWORK: SupportedNetwork = 'testnet';
 
 function parseNetwork(raw: string): SupportedNetwork {
   const v = raw.trim().toLowerCase();
@@ -54,12 +46,56 @@ function parseNetwork(raw: string): SupportedNetwork {
 }
 
 function parseContractId(contractAddress: string): { address: string; name: string; id: string } {
-  // For Stellar, we use the contract address directly as the ID
-  // Stellar contracts don't have separate names like Stacks contracts
-  const address = contractAddress.trim();
-  const name = 'contract'; // Default name for Stellar contracts
-  const id = address;
-  return { address, name, id };
+  const trimmed = contractAddress.trim();
+  const separatorIndex = trimmed.indexOf('.');
+
+  if (separatorIndex <= 0 || separatorIndex === trimmed.length - 1) {
+    throw new Error(
+      `Invalid contract id '${trimmed}'. Expected '<address>.<name>' coordinates for Stacks reads/writes.`
+    );
+  }
+
+  const address = trimmed.slice(0, separatorIndex).trim();
+  const name = trimmed.slice(separatorIndex + 1).trim();
+  return { address, name, id: `${address}.${name}` };
+}
+
+function getOptionalEnv(name: string): string | undefined {
+  const env =
+    typeof process !== 'undefined' && process.env ? process.env[name]?.trim() : undefined;
+  return env ? env : undefined;
+}
+
+function resolveContractConfig(network: SupportedNetwork): ContractConfig {
+  const envAddress = getOptionalEnv('NEXT_PUBLIC_CONTRACT_ADDRESS');
+  const envName = getOptionalEnv('NEXT_PUBLIC_CONTRACT_NAME');
+
+  if (envAddress || envName) {
+    if (!envAddress || !envName) {
+      throw new Error(
+        'NEXT_PUBLIC_CONTRACT_ADDRESS and NEXT_PUBLIC_CONTRACT_NAME must both be set when overriding contract coordinates.'
+      );
+    }
+
+    return {
+      address: envAddress,
+      name: envName,
+      id: `${envAddress}.${envName}`,
+    };
+  }
+
+  const analyticsKey = network === 'mainnet' ? 'MAINNET' : 'TESTNET';
+  const contractIdFromAnalytics = (ANALYTICS_NETWORK_CONFIG as Record<string, { CONTRACT_ADDRESS?: string }>)[
+    analyticsKey
+  ]?.CONTRACT_ADDRESS;
+
+  if (!contractIdFromAnalytics || typeof contractIdFromAnalytics !== 'string') {
+    throw new Error(
+      `Missing contract id for network '${network}'. Expected it in analytics NETWORK_CONFIG[${analyticsKey}].CONTRACT_ADDRESS.`
+    );
+  }
+
+  return parseContractId(contractIdFromAnalytics);
 }
 
 let cachedConfig: RuntimeConfig | null = null;
@@ -67,14 +103,14 @@ let cachedConfig: RuntimeConfig | null = null;
 /**
  * Typed runtime config (contract, network selection, API endpoints).
  *
- * Fail-fast behavior:
- * - Throws if `NEXT_PUBLIC_NETWORK` is missing or invalid.
+ * Behavior:
+ * - Defaults to `testnet` when `NEXT_PUBLIC_NETWORK` is not set.
  * - Throws if derived contract/API configuration cannot be resolved.
  */
 export function getRuntimeConfig(): RuntimeConfig {
   if (cachedConfig) return cachedConfig;
 
-  const network = parseNetwork(getRequiredEnv('NEXT_PUBLIC_NETWORK'));
+  const network = parseNetwork(getOptionalEnv('NEXT_PUBLIC_NETWORK') ?? DEFAULT_NETWORK);
 
   const walletNet = WALLETCONNECT_CONFIG.networks[network];
   if (!walletNet?.coreApiUrl || !walletNet?.explorerUrl || !walletNet?.rpcUrl) {
@@ -86,24 +122,10 @@ export function getRuntimeConfig(): RuntimeConfig {
     throw new Error(`Missing Soroban RPC URLs for network '${network}' in wallet configuration.`);
   }
 
-  // Soroban contract ID — prefer explicit env var, fall back to analytics config
+  // Soroban contract ID — used by the Stellar event/read path.
   const sorobanContractId =
     (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SOROBAN_CONTRACT_ID) || '';
-
-  const analyticsKey = network === 'mainnet' ? 'MAINNET' : 'TESTNET';
-  const contractIdFromAnalytics = (ANALYTICS_NETWORK_CONFIG as any)?.[analyticsKey]?.CONTRACT_ADDRESS;
-  if (!contractIdFromAnalytics || typeof contractIdFromAnalytics !== 'string') {
-    throw new Error(
-      `Missing contract id for network '${network}'. Expected it in analytics NETWORK_CONFIG[${analyticsKey}].CONTRACT_ADDRESS.`
-    );
-  }
-
-  const contractValidation = validateStellarContractAddress(contractIdFromAnalytics);
-  if (!contractValidation.valid) {
-    throw new Error(`Invalid contract configuration: ${contractValidation.error}`);
-  }
-
-  const contract = parseContractId(contractIdFromAnalytics);
+  const contract = resolveContractConfig(network);
 
   cachedConfig = {
     network,

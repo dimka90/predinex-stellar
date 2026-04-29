@@ -175,10 +175,12 @@ vi.mock('../../components/PortfolioOverview', () => ({
 }));
 
 vi.mock('../../components/EmptyState', () => ({
+  EmptyState: ({ message }: { message: string }) => <p>{message}</p>,
   default: ({ message }: { message: string }) => <p>{message}</p>,
 }));
 
 vi.mock('../../components/DisconnectedState', () => ({
+  DisconnectedState: () => <div data-testid="disconnected-state" />,
   default: () => <div data-testid="disconnected-state" />,
 }));
 

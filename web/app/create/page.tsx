@@ -1,16 +1,17 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { openContractCall } from '@stacks/connect';
-import { stringAsciiCV, uintCV } from '@stacks/transactions';
 import Navbar from '../components/Navbar';
 import AuthGuard from '../components/AuthGuard';
-import { useStacks } from '../components/StacksProvider';
+import { useWallet } from '../components/WalletAdapterProvider';
 import { useToast } from '../../providers/ToastProvider';
 import { useLocalStorage } from '../lib/hooks/useLocalStorage';
 import { validatePoolCreationForm } from '../lib/validators';
-import { getRuntimeConfig } from '../lib/runtime-config';
+import { predinexContract } from '../lib/adapters/predinex-contract';
+import { invalidateOnCreatePool } from '../lib/cache-invalidation';
 import { Loader2 } from 'lucide-react';
+import { TxStage } from '../lib/soroban-transaction-service';
+import { TransactionFeeModal } from '../components/TransactionFeeModal';
 
 const CREATE_MARKET_DRAFT_KEY = 'predinex_create_market_draft_v1';
 
@@ -33,7 +34,7 @@ const EMPTY_DRAFT: CreateMarketDraft = {
 type FormErrors = Partial<Record<keyof CreateMarketDraft, string>>;
 
 export default function CreateMarket() {
-    const { userData, authenticate } = useStacks();
+    const wallet = useWallet();
     const { showToast } = useToast();
     const [draft, setDraft, clearDraft] = useLocalStorage<CreateMarketDraft>(
         CREATE_MARKET_DRAFT_KEY,
@@ -41,7 +42,9 @@ export default function CreateMarket() {
     );
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [stage, setStage] = useState<TxStage>('idle');
     const [txId, setTxId] = useState<string | null>(null);
+    const [feePrompt, setFeePrompt] = useState<{ feeStroops: string, resolve: (v: boolean) => void } | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -51,11 +54,21 @@ export default function CreateMarket() {
         }
     };
 
+    const getStageLabel = (s: TxStage) => {
+        switch (s) {
+            case 'simulating': return 'Simulating transaction…';
+            case 'signing': return 'Waiting for signature…';
+            case 'submitting': return 'Submitting to network…';
+            case 'polling': return 'Confirming transaction…';
+            default: return 'Submitting…';
+        }
+    };
+
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        if (!userData) {
-            authenticate();
+        if (!wallet.isConnected) {
+            wallet.connect();
             return;
         }
 
@@ -74,33 +87,34 @@ export default function CreateMarket() {
         }
 
         setIsSubmitting(true);
+        setStage('idle');
         try {
-            const { contract } = getRuntimeConfig();
-            await openContractCall({
-                contractAddress: contract.address,
-                contractName: contract.name,
-                functionName: 'create-pool',
-                functionArgs: [
-                    stringAsciiCV(draft.title),
-                    stringAsciiCV(draft.description),
-                    stringAsciiCV(draft.outcomeA),
-                    stringAsciiCV(draft.outcomeB),
-                    uintCV(duration),
-                ],
-                onFinish: (data) => {
-                    setTxId(data.txId);
-                    clearDraft();
-                    showToast('Market created successfully!', 'success');
-                    setIsSubmitting(false);
-                },
-                onCancel: () => {
-                    showToast('Transaction cancelled.', 'info');
-                    setIsSubmitting(false);
-                },
+            const { txHash } = await predinexContract.createMarketSoroban({
+                wallet,
+                title: draft.title,
+                description: draft.description,
+                outcomeA: draft.outcomeA,
+                outcomeB: draft.outcomeB,
+                durationSeconds: duration,
+                onStageChange: (s) => setStage(s),
+                onFeeEstimated: (fee) => {
+                    return new Promise((resolve) => {
+                        setFeePrompt({ feeStroops: fee, resolve });
+                    });
+                }
             });
+
+            setTxId(txHash);
+            clearDraft();
+            invalidateOnCreatePool();
+            showToast('Market created successfully!', 'success');
         } catch (error) {
+            console.error('Failed to create market:', error);
             showToast(`Failed to create market: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+        } finally {
             setIsSubmitting(false);
+            setStage('idle');
+            setFeePrompt(null);
         }
     };
 
@@ -110,6 +124,23 @@ export default function CreateMarket() {
             <AuthGuard>
                 <div className="container mx-auto px-4 py-12 max-w-2xl">
                     <h1 className="text-3xl font-bold mb-8">Create New Market</h1>
+
+                    <TransactionFeeModal
+                        isOpen={!!feePrompt}
+                        actionName="Create Pool"
+                        feeStroops={feePrompt?.feeStroops || '0'}
+                        onConfirm={() => {
+                            feePrompt?.resolve(true);
+                            setFeePrompt(null);
+                        }}
+                        onCancel={() => {
+                            feePrompt?.resolve(false);
+                            setFeePrompt(null);
+                            setIsSubmitting(false);
+                            setStage('idle');
+                        }}
+                        isConfirming={stage === 'signing' || stage === 'submitting' || stage === 'polling'}
+                    />
 
                     {txId && (
                         <div role="status" className="mb-6 p-4 rounded-xl border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400">
@@ -189,15 +220,15 @@ export default function CreateMarket() {
 
                             {/* Duration */}
                             <div>
-                                <label htmlFor="duration" className="block text-sm font-medium mb-1">Duration (blocks)</label>
+                                <label htmlFor="duration" className="block text-sm font-medium mb-1">Duration (seconds)</label>
                                 <input
                                     id="duration"
                                     name="duration"
                                     type="number"
-                                    min={10}
+                                    min={300}
                                     value={draft.duration}
                                     onChange={handleChange}
-                                    placeholder="e.g. 1440 (~10 days on Stacks)"
+                                    placeholder="e.g. 86400 (1 day on Stellar)"
                                     className="w-full px-4 py-2 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary/50"
                                     aria-describedby={errors.duration ? 'duration-error' : undefined}
                                 />
@@ -221,7 +252,7 @@ export default function CreateMarket() {
                                 className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-bold disabled:opacity-60 flex items-center justify-center gap-2 transition-opacity"
                             >
                                 {isSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
-                                {isSubmitting ? 'Submitting…' : 'Create Market'}
+                                {isSubmitting ? getStageLabel(stage) : 'Create Market'}
                             </button>
                         </div>
                     </form>

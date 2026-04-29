@@ -2,8 +2,8 @@ import type { ToastType } from '../components/ui/Toast';
 import type { ConnectivityIssue } from '../app/lib/network-errors';
 import { getConnectivityMessage } from '../app/lib/network-errors';
 
-/** Minimum bet in STX — shared by validation, inline hints, and toast copy. */
-export const MIN_BET_STX = 0.1;
+/** Minimum bet in XLM — shared by validation, inline hints, and toast copy. */
+export const MIN_BET_XLM = 0.1;
 
 export type ToastPayload = { message: string; type: ToastType };
 
@@ -19,13 +19,13 @@ export const toastMessages = {
     },
     minBet(): ToastPayload {
       return {
-        message: `Minimum bet amount is ${MIN_BET_STX} STX.`,
+        message: `Minimum bet is ${MIN_BET_XLM} XLM`,
         type: 'error',
       };
     },
     insufficientBalance(balance: number): ToastPayload {
       return {
-        message: `Insufficient balance. You have ${balance} STX.`,
+        message: `Insufficient balance. Available: ${balance.toFixed(2)} XLM`,
         type: 'error',
       };
     },

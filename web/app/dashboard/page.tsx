@@ -10,6 +10,7 @@ import { useClaimWinnings } from '../lib/hooks/useClaimWinnings';
 import RouteErrorBoundary from '../../components/RouteErrorBoundary';
 import { EmptyState } from '../../components/EmptyState';
 import { DisconnectedState } from '../../components/DisconnectedState';
+import { TransactionFeeModal } from '../components/TransactionFeeModal';
 
 function StatsSkeleton() {
   return (
@@ -49,12 +50,7 @@ const ActiveBetsCard = dynamic(() => import('../components/dashboard/ActiveBetsC
 
 function DashboardContent() {
   const { address: stxAddress, isConnected } = useWallet();
-  const { claimTransactions, claim } = useClaimWinnings(stxAddress);
-  
-  if (!isConnected) {
-    return <DisconnectedState />;
-  }
-
+  const { claimTransactions, claim, feePrompt, setFeePrompt, stage, setStage } = useClaimWinnings(stxAddress);
   const {
     activities,
     isLoading: activityLoading,
@@ -63,11 +59,31 @@ function DashboardContent() {
   } = useUserActivity(stxAddress ?? undefined, 5);
   const { activeBets, isLoading: betsLoading, refresh: refreshBets } = useActiveBets(stxAddress);
 
+  if (!isConnected) {
+    return <DisconnectedState />;
+  }
+
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
       <AuthGuard>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <TransactionFeeModal
+            isOpen={!!feePrompt}
+            actionName="Claim Winnings"
+            feeStroops={feePrompt?.feeStroops || '0'}
+            onConfirm={() => {
+                feePrompt?.resolve(true);
+                setFeePrompt(null);
+            }}
+            onCancel={() => {
+                feePrompt?.resolve(false);
+                setFeePrompt(null);
+                setStage('idle');
+            }}
+            isConfirming={stage === 'signing' || stage === 'submitting' || stage === 'polling'}
+          />
+
           <h1 className="text-4xl font-black mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Institutional Dashboard
           </h1>
@@ -91,6 +107,8 @@ function DashboardContent() {
                     void claim(poolId, () => {
                       refreshActivity();
                       refreshBets();
+                    }).catch(() => {
+                      // useClaimWinnings already records the failure state and toast.
                     });
                   }}
                   isLoading={betsLoading}
