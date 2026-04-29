@@ -30,7 +30,7 @@ export interface TransactionOptions {
 export interface TransactionResult {
   txId: string;
   transaction: StacksTransactionWire;
-  broadcastResult: TxBroadcastResult;
+  broadcastResult: Awaited<ReturnType<typeof broadcastTransaction>>;
 }
 
 /**

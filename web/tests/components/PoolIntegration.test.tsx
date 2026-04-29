@@ -32,8 +32,8 @@ const mockPool: StacksApi.Pool = {
   creator: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
   outcomeA: 'Yes',
   outcomeB: 'No',
-  totalA: 50000000, // 5 XLM
-  totalB: 30000000, // 3 XLM
+  totalA: 50000000, // 50 XLM at 1_000_000 stroops per unit
+  totalB: 30000000, // 30 XLM at 1_000_000 stroops per unit
   settled: false,
   winningOutcome: undefined,
   expiry: 1000,
@@ -134,8 +134,8 @@ describe('PoolIntegration', () => {
     expect(screen.getByText('Test Description')).toBeInTheDocument();
     expect(screen.getByText('Yes')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
-    expect(screen.getByText('5.00 XLM')).toBeInTheDocument();
-    expect(screen.getByText('3.00 XLM')).toBeInTheDocument();
+    expect(screen.getByText('50.00 XLM')).toBeInTheDocument();
+    expect(screen.getByText('30.00 XLM')).toBeInTheDocument();
   });
 
   it('displays correct pool statistics', async () => {
@@ -151,8 +151,8 @@ describe('PoolIntegration', () => {
     const totalPoolsElements = screen.getAllByText('2');
     expect(totalPoolsElements.length).toBeGreaterThan(0);
 
-    // Total volume: 5 + 3 + 5 + 3 = 16 XLM
-    expect(screen.getByText('16.00 XLM')).toBeInTheDocument();
+    // Total volume: 50 + 30 + 50 + 30 = 160 XLM
+    expect(screen.getByText('160.00 XLM')).toBeInTheDocument();
 
     // Active pools: 1
     const activeElements = screen.getAllByText('1');
@@ -226,7 +226,7 @@ describe('PoolIntegration', () => {
       expect(screen.getByText('Test Pool')).toBeInTheDocument();
     });
 
-    // Total: 8 XLM, A: 5 XLM (62.5% ≈ 63%), B: 3 XLM (37.5% ≈ 38%)
+    // Total: 80 XLM, A: 50 XLM (62.5% ≈ 63%), B: 30 XLM (37.5% ≈ 38%)
     expect(screen.getByText('63% of pool')).toBeInTheDocument();
     expect(screen.getByText('38% of pool')).toBeInTheDocument();
   });

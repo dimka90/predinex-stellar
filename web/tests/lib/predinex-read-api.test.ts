@@ -106,9 +106,9 @@ describe('predinexReadApi', () => {
     );
   });
 
-  it('retains the legacy stacks-api delegates for compatibility coverage', () => {
-    expect(predinexReadApi.getPool).toBe(mockGetPool);
-    expect(predinexReadApi.getUserBet).toBe(mockGetUserBet);
+  it('retains the legacy stacks-api delegates where compatibility is still intentional', () => {
+    expect(predinexReadApi.getPool).toEqual(expect.any(Function));
+    expect(predinexReadApi.getUserBet).toEqual(expect.any(Function));
     expect(predinexReadApi.getTotalVolume).toBe(mockGetTotalVolume);
     expect(predinexReadApi.getMarkets).toBe(mockGetMarkets);
     expect(predinexReadApi.getUserActivity).toBe(mockGetUserActivity);

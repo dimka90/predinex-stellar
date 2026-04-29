@@ -3,7 +3,6 @@
  * These helpers manage odds calculations, status determinations, and formatting for prediction markets.
  */
 
-import { STACKS_MAINNET, STACKS_TESTNET, type StacksNetwork } from '@stacks/network';
 import { PoolData, ProcessedMarket, MarketStatus } from './market-types';
 import { getRuntimeConfig } from './runtime-config';
 
@@ -137,11 +136,6 @@ type BlockHeightCachePayload = {
   height: number;
 };
 
-function getStacksNetwork(): StacksNetwork {
-  const cfg = getRuntimeConfig();
-  return cfg.network === 'testnet' ? STACKS_TESTNET : STACKS_MAINNET;
-}
-
 function readBlockHeightCache(now: number = Date.now()): {
   height: number;
   isFresh: boolean;
@@ -210,8 +204,8 @@ export async function fetchCurrentBlockHeightLive(options?: {
     };
   }
 
-  const network = getStacksNetwork();
-  const url = `${network.coreApiUrl}/extended/v1/status`;
+  const cfg = getRuntimeConfig();
+  const url = `${cfg.api.coreApiUrl}/extended/v1/status`;
 
   try {
     const controller =
@@ -249,7 +243,7 @@ export async function fetchCurrentBlockHeightLive(options?: {
 
     writeBlockHeightCache(height);
     return { height, warning: null };
-  } catch (e) {
+  } catch {
     const fallbackHeight = getCurrentBlockHeight();
     const warning =
       fallbackHeight > 0

@@ -2769,8 +2769,6 @@ fn l5_claim_winnings_emits_claim_event() {
 // Issue #187: Metadata validation tests
 // ============================================================================
 
-
-
 // ============================================================================
 // Issue #193: Contract configuration read method tests
 //
@@ -2833,7 +2831,7 @@ fn test_create_pool_exceeds_title_length() {
     let t = setup();
     let long_title_str = std::string::String::from_utf8(std::vec![b'A'; 101]).unwrap();
     let long_title = String::from_str(&t.env, &long_title_str);
-    
+
     t.client.create_pool(
         &t.admin,
         &long_title,
@@ -2850,7 +2848,7 @@ fn test_create_pool_exceeds_description_length() {
     let t = setup();
     let long_desc_str = std::string::String::from_utf8(std::vec![b'B'; 1001]).unwrap();
     let long_desc = String::from_str(&t.env, &long_desc_str);
-    
+
     t.client.create_pool(
         &t.admin,
         &String::from_str(&t.env, "Title"),
@@ -2867,7 +2865,7 @@ fn test_create_pool_exceeds_outcome_length() {
     let t = setup();
     let long_outcome_str = std::string::String::from_utf8(std::vec![b'C'; 51]).unwrap();
     let long_outcome = String::from_str(&t.env, &long_outcome_str);
-    
+
     t.client.create_pool(
         &t.admin,
         &String::from_str(&t.env, "Title"),
@@ -2881,12 +2879,12 @@ fn test_create_pool_exceeds_outcome_length() {
 #[test]
 fn test_create_pool_max_lengths_accepted() {
     let t = setup();
-    
+
     let title_str = std::string::String::from_utf8(std::vec![b'T'; 100]).unwrap();
     let desc_str = std::string::String::from_utf8(std::vec![b'D'; 1000]).unwrap();
     let out_a_str = std::string::String::from_utf8(std::vec![b'A'; 50]).unwrap();
     let out_b_str = std::string::String::from_utf8(std::vec![b'B'; 50]).unwrap();
-    
+
     let pool_id = t.client.create_pool(
         &t.admin,
         &String::from_str(&t.env, &title_str),
@@ -2895,7 +2893,7 @@ fn test_create_pool_max_lengths_accepted() {
         &String::from_str(&t.env, &out_b_str),
         &3_600u64,
     );
-    
+
     let pool = t.client.get_pool(&pool_id).unwrap();
     assert_eq!(pool.title.len(), 100);
     assert_eq!(pool.description.len(), 1000);

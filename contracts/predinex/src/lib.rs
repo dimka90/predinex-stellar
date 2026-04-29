@@ -321,7 +321,6 @@ pub struct CreatePoolEvent {
     pub outcome_b_name: String,
 }
 
-
 /// #195 — Pool-level protocol revenue exposed for analytics and audits.
 ///
 /// `settlement_protocol_fee` is the bps fee amount fixed when the pool is

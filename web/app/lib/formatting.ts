@@ -281,8 +281,8 @@ export function formatTimestamp(
   timestamp: number,
   format: 'short' | 'long' | 'relative' = 'short'
 ): string {
-  // Detect if timestamp is in seconds (before year 2100) or milliseconds
-  const ms = timestamp < 4_000_000_000_000 ? timestamp * 1000 : timestamp;
+  // Treat 10-digit unix timestamps as seconds and 13-digit values as milliseconds.
+  const ms = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
   const date = new Date(ms);
   
   switch (format) {

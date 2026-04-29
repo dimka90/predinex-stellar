@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CreateMarket from '../../app/create/page';
 import { renderWithProviders } from '../helpers/renderWithProviders';
@@ -39,11 +39,11 @@ vi.mock('../../app/components/StacksProvider', () => ({
     StacksProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('../../components/Navbar', () => ({
+vi.mock('../../app/components/Navbar', () => ({
     default: () => <nav data-testid="navbar" />,
 }));
 
-vi.mock('../../components/AuthGuard', () => ({
+vi.mock('../../app/components/AuthGuard', () => ({
     default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -150,11 +150,6 @@ describe('CreateMarket page', () => {
 
     it('shows success feedback after transaction completes', async () => {
         setupWithUser();
-        // Make useTxStatus return 'pending' once trackTx is called
-        const mockTrackTx = vi.fn();
-        vi.mocked(require('../../app/lib/hooks/useTxStatus').useTxStatus)
-            .mockReturnValue([{ status: 'pending', txId: 'mock-tx-id-123', error: null }, mockTrackTx]);
-
         mockOpenContractCall.mockImplementation(({ onFinish }) => {
             onFinish({ txId: 'mock-tx-id-123' });
         });
@@ -165,10 +160,12 @@ describe('CreateMarket page', () => {
         await fillValidForm(user);
         await user.click(screen.getByRole('button', { name: /create market/i }));
 
+        const status = await screen.findByRole('status');
         await waitFor(() => {
-            expect(screen.getByRole('status')).toBeInTheDocument();
+            expect(status).toBeInTheDocument();
         });
-        expect(mockTrackTx).toHaveBeenCalledWith('mock-tx-id-123');
+        expect(within(status).getByText(/^market created!$/i)).toBeInTheDocument();
+        expect(within(status).getByText(/mock-tx-id-123/i)).toBeInTheDocument();
     });
 
     it('calls authenticate when wallet is not connected and form is submitted', async () => {

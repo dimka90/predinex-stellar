@@ -28,10 +28,12 @@ export default function StaleDataIndicator({
   forceStale = false,
   compact = false,
 }: StaleDataIndicatorProps) {
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(lastFetchedAt ?? 0);
 
   useEffect(() => {
     if (!lastFetchedAt) return;
+
+    setCurrentTime(Date.now());
 
     const interval = setInterval(() => {
       setCurrentTime(Date.now());
@@ -101,10 +103,12 @@ export default function StaleDataIndicator({
  * Hook to track staleness of data based on timestamp
  */
 export function useStaleData(lastFetchedAt: number | undefined, maxAgeMs: number = DEFAULT_MAX_AGE) {
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(lastFetchedAt ?? 0);
 
   useEffect(() => {
     if (!lastFetchedAt) return;
+
+    setCurrentTime(Date.now());
 
     const interval = setInterval(() => {
       setCurrentTime(Date.now());

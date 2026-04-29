@@ -4,8 +4,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BettingSection from '../../app/components/BettingSection';
 import * as WalletAdapterProvider from '../../app/components/WalletAdapterProvider';
+import * as StacksProvider from '../../app/components/StacksProvider';
+import * as NetworkMismatch from '../../lib/hooks/useNetworkMismatch';
+import * as TxStatusHook from '../../app/lib/hooks/useTxStatus';
 import { useToast } from '../../providers/ToastProvider';
 import { predinexContract } from '../../app/lib/adapters/predinex-contract';
+import { toastMessages } from '../../lib/toast-messages';
 import { renderWithProviders } from '../helpers/renderWithProviders';
 
 // Mock WalletAdapterProvider hook
@@ -14,10 +18,23 @@ vi.mock('../../app/components/WalletAdapterProvider', () => ({
   WalletAdapterProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('../../app/components/StacksProvider', () => ({
+  useStacks: vi.fn(),
+  StacksProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock('../../app/lib/adapters/predinex-contract', () => ({
   predinexContract: {
     placeBet: vi.fn(),
   },
+}));
+
+vi.mock('../../lib/hooks/useNetworkMismatch', () => ({
+  useNetworkMismatch: vi.fn(),
+}));
+
+vi.mock('../../app/lib/hooks/useTxStatus', () => ({
+  useTxStatus: vi.fn(),
 }));
 
 vi.mock('../../providers/ToastProvider', () => ({
@@ -69,6 +86,26 @@ describe('BettingSection', () => {
     vi.mocked(useToast).mockReturnValue({
       showToast,
     });
+    vi.mocked(StacksProvider.useStacks).mockReturnValue({
+      userData: null,
+      authenticate: vi.fn(),
+      userSession: {} as never,
+      setUserData: vi.fn(),
+      signOut: vi.fn(),
+      openWalletModal: vi.fn(),
+      isLoading: false,
+    });
+    vi.mocked(NetworkMismatch.useNetworkMismatch).mockReturnValue({
+      isMismatch: false,
+      expectedNetworkType: 'testnet',
+      expectedNetworkName: 'Stellar Testnet',
+      currentNetworkName: 'Stellar Testnet',
+      switchNetwork: vi.fn(),
+    });
+    vi.mocked(TxStatusHook.useTxStatus).mockReturnValue([
+      { status: 'idle', txId: null, error: null },
+      vi.fn(),
+    ]);
   });
 
   it('renders betting section with pool information', () => {

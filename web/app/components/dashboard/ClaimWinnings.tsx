@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { Gift, CheckCircle, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { UserBet, ClaimTransaction } from '../../lib/dashboard-types';
+import type { UserBet } from '../../lib/dashboard-types';
+import type { ClaimTxState } from '../../lib/hooks/useClaimWinnings';
 import { formatCurrency } from '../../lib/dashboard-utils';
 import TransactionReceipt, { TransactionReceiptData } from '../TransactionReceipt';
 
 interface ClaimWinningsProps {
   claimableBets: UserBet[];
-  claimTransactions: Map<number, ClaimTransaction>;
+  claimTransactions: Map<number, ClaimTxState>;
   onClaim: (poolId: number) => void;
   onBatchClaim: (poolIds: number[]) => void;
   isLoading?: boolean;
@@ -64,7 +65,7 @@ export default function ClaimWinnings({
       outcome: bet.outcomeName,
       status: claimTx.status,
       error: claimTx.error,
-      timestamp: Date.now(),
+      timestamp: bet.betTimestamp * 1000,
     };
     setReceiptData(receipt);
     setShowReceipt(true);
