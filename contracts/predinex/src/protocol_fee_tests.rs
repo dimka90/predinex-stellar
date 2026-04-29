@@ -37,7 +37,7 @@ fn test_set_protocol_fee_within_bounds() {
 }
 
 #[test]
-#[should_panic(expected = "Fee out of bounds")]
+#[should_panic]
 fn test_set_protocol_fee_above_max_rejected() {
     let (_env, client, admin, _) = setup_contract();
     client.set_protocol_fee(&admin, &1001);
