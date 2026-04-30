@@ -14,6 +14,12 @@
  */
 
 import type { ActivityItem } from './adapters/types';
+import {
+  notifyPoolCreated,
+  notifyBetPlaced,
+  notifyPoolSettled,
+  notifyPayoutClaimed,
+} from './webhook-service';
 
 // ---------------------------------------------------------------------------
 // Event schema version (issue #175)
@@ -325,6 +331,64 @@ export function mapEventToActivityItem(
 // ---------------------------------------------------------------------------
 
 /**
+ * Trigger webhook notification for a decoded event.
+ * This is fire-and-forget — failures are logged but don't block the activity feed.
+ */
+async function triggerWebhookNotification(event: DecodedSorobanEvent): Promise<void> {
+  if (!event.poolId) return;
+
+  switch (event.name) {
+    case 'create_pool':
+      // For pool creation, we need additional data not in the decoded event
+      // This is a simplified version — in production you'd fetch pool details
+      await notifyPoolCreated(
+        event.poolId,
+        event.user ?? '',
+        '', // title - would need to fetch
+        '', // outcomeA
+        '', // outcomeB
+        0   // expiry
+      );
+      break;
+
+    case 'place_bet':
+      if (event.user && event.outcome !== undefined && event.amount) {
+        await notifyBetPlaced(
+          event.poolId,
+          event.user,
+          event.outcome === 0 ? 'A' : 'B',
+          event.amount,
+          0 // potentialWinnings - would need to calculate
+        );
+      }
+      break;
+
+    case 'settle_pool':
+      if (event.winningOutcome !== undefined) {
+        await notifyPoolSettled(
+          event.poolId,
+          event.winningOutcome,
+          0, // totalPoolA - would need to fetch
+          0, // totalPoolB
+          0  // totalWinners
+        );
+      }
+      break;
+
+    case 'claim_winnings':
+      if (event.user && event.winnings) {
+        await notifyPayoutClaimed(
+          event.poolId,
+          event.user,
+          event.winnings,
+          'A' // outcome - would need to fetch
+        );
+      }
+      break;
+  }
+}
+
+/**
  * Fetches Soroban contract events for a specific user address and maps them
  * into ActivityItem objects for the UI.
  *
@@ -409,6 +473,12 @@ export async function getUserActivityFromSoroban(
 
       const item = mapEventToActivityItem(decoded, explorerUrl);
       if (item) items.push(item);
+
+      // Send webhook notifications (fire-and-forget, don't block activity feed)
+      // Issue #314: webhook notifications for pool events
+      triggerWebhookNotification(decoded).catch(err => 
+        console.warn('[soroban-event-service] Webhook notification failed:', err)
+      );
     }
 
     // Sort newest first

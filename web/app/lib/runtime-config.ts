@@ -31,11 +31,33 @@ export type SorobanConfig = {
   contractId: string;
 };
 
+export type WebhookSettings = {
+  /** Global webhook URL for all pools */
+  url: string;
+  /** Shared secret for HMAC signature verification */
+  secret: string;
+  /** Whether global webhook is enabled */
+  enabled: boolean;
+};
+
+export type PoolWebhookSettings = {
+  /** Per-pool webhook URL */
+  url: string;
+  /** Per-pool secret for HMAC signature */
+  secret: string;
+  /** Whether per-pool webhook is enabled */
+  enabled: boolean;
+};
+
 export type RuntimeConfig = {
   network: SupportedNetwork;
   contract: ContractConfig;
   api: StacksApiConfig;
   soroban: SorobanConfig;
+  /** Global webhook configuration */
+  webhook?: WebhookSettings;
+  /** Per-pool webhook configurations (poolId -> settings) */
+  poolWebhooks?: Record<number, PoolWebhookSettings>;
 };
 
 function getRequiredEnv(name: string): string {
@@ -118,9 +140,28 @@ export function getRuntimeConfig(): RuntimeConfig {
       explorerUrl: sorobanNet.explorerUrl,
       contractId: sorobanContractId,
     },
+    // Webhook configuration from environment
+    webhook: parseWebhookConfig(),
   };
 
   return cachedConfig;
+}
+
+function parseWebhookConfig(): WebhookSettings | undefined {
+  const url = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_WEBHOOK_URL;
+  const secret = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_WEBHOOK_SECRET;
+  const enabled = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_WEBHOOK_ENABLED === 'true';
+  
+  if (!url || !secret) {
+    // Return undefined if not configured (webhook disabled by default)
+    return undefined;
+  }
+  
+  return {
+    url,
+    secret,
+    enabled,
+  };
 }
 
 /**
