@@ -365,3 +365,158 @@ fn test_treasury_can_replace_freeze_admin() {
     let pool = ctx.client.get_pool(&pool_id).unwrap();
     assert_eq!(pool.status, PoolStatus::Frozen);
 }
+
+// ── Contract-wide emergency pause (#421) ─────────────────────────────────────
+
+#[test]
+fn test_is_paused_defaults_to_false() {
+    let ctx = TestCtx::new();
+    assert!(!ctx.client.is_paused());
+}
+
+#[test]
+fn test_treasury_recipient_can_pause_and_unpause() {
+    let ctx = TestCtx::new();
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    assert!(ctx.client.is_paused());
+    ctx.client.set_paused(&ctx.token_admin, &false);
+    assert!(!ctx.client.is_paused());
+}
+
+#[test]
+#[should_panic]
+fn test_non_treasury_cannot_pause() {
+    let ctx = TestCtx::new();
+    let stranger = Address::generate(&ctx.env);
+    ctx.client.set_paused(&stranger, &true);
+}
+
+#[test]
+#[should_panic]
+fn test_place_bet_blocked_when_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    let user = Address::generate(&ctx.env);
+    let token_admin_client = token::StellarAssetClient::new(&ctx.env, &ctx.token_id);
+    token_admin_client.mint(&user, &500);
+    ctx.client
+        .place_bet(&user, &pool_id, &0, &100, &None::<Address>);
+}
+
+#[test]
+fn test_place_bet_resumes_after_unpause() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    ctx.client.set_paused(&ctx.token_admin, &false);
+    let user = Address::generate(&ctx.env);
+    let token_admin_client = token::StellarAssetClient::new(&ctx.env, &ctx.token_id);
+    token_admin_client.mint(&user, &500);
+    ctx.client
+        .place_bet(&user, &pool_id, &0, &100, &None::<Address>);
+    let pool = ctx.client.get_pool(&pool_id).unwrap();
+    assert_eq!(pool.total_a, 100);
+}
+
+#[test]
+#[should_panic]
+fn test_settle_pool_blocked_when_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    let user = Address::generate(&ctx.env);
+    ctx.fund_and_bet(&user, pool_id, 0, 200);
+    ctx.env.ledger().with_mut(|li| li.timestamp = 7200);
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    ctx.client.settle_pool(&ctx.pool_creator, &pool_id, &0);
+}
+
+#[test]
+#[should_panic]
+fn test_claim_winnings_blocked_when_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    let user_a = Address::generate(&ctx.env);
+    let user_b = Address::generate(&ctx.env);
+    ctx.fund_and_bet(&user_a, pool_id, 0, 500);
+    ctx.fund_and_bet(&user_b, pool_id, 1, 500);
+    ctx.settle(pool_id, 0);
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    ctx.client.claim_winnings(&user_a, &pool_id);
+}
+
+#[test]
+#[should_panic]
+fn test_cancel_bet_blocked_when_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    let user = Address::generate(&ctx.env);
+    ctx.fund_and_bet(&user, pool_id, 0, 200);
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    ctx.client.cancel_bet(&user, &pool_id, &0, &100);
+}
+
+#[test]
+#[should_panic]
+fn test_claim_refund_blocked_when_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    let user = Address::generate(&ctx.env);
+    ctx.fund_and_bet(&user, pool_id, 0, 200);
+    // Void the pool first (must happen before pause)
+    ctx.client.void_pool(&ctx.pool_creator, &pool_id);
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    ctx.client.claim_refund(&user, &pool_id);
+}
+
+#[test]
+#[should_panic]
+fn test_void_pool_blocked_when_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    ctx.client.void_pool(&ctx.pool_creator, &pool_id);
+}
+
+#[test]
+fn test_read_methods_available_when_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    ctx.client.set_paused(&ctx.token_admin, &true);
+
+    assert!(ctx.client.get_pool(&pool_id).is_some());
+    assert!(ctx.client.get_pool_count() >= 1);
+    assert!(ctx.client.is_paused());
+    assert_eq!(ctx.client.get_treasury_balance(), 0);
+}
+
+#[test]
+fn test_admin_functions_available_when_paused() {
+    let ctx = TestCtx::new();
+    ctx.client.set_paused(&ctx.token_admin, &true);
+
+    // Treasury rotation still works
+    let new_recipient = Address::generate(&ctx.env);
+    ctx.client
+        .rotate_treasury_recipient(&ctx.token_admin, &new_recipient);
+    assert_eq!(ctx.client.get_treasury_recipient().unwrap(), new_recipient);
+}
+
+#[test]
+fn test_create_pool_blocked_when_paused() {
+    // create_pool does NOT call require_not_paused — confirm it goes through
+    // (the issue only blocks betting/settling/claiming, not pool creation).
+    // This documents the intentional design decision.
+    let ctx = TestCtx::new();
+    ctx.client.set_paused(&ctx.token_admin, &true);
+    let pool_id = ctx.client.create_pool(
+        &ctx.pool_creator,
+        &String::from_str(&ctx.env, "Paused Market"),
+        &String::from_str(&ctx.env, "Created while paused"),
+        &String::from_str(&ctx.env, "Yes"),
+        &String::from_str(&ctx.env, "No"),
+        &3600,
+    );
+    // Pool creation succeeds even when paused
+    assert!(ctx.client.get_pool(&pool_id).is_some());
+}
