@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { Clock, TrendingUp, Users, CheckCircle, XCircle, Star, StarOff } from 'lucide-react';
 import { ProcessedMarket } from '../lib/market-types';
-import { formatSTXAmount, formatTimeRemaining } from '../lib/market-utils';
+import { formatSTXAmount } from '../lib/market-utils';
+import { blocksToSeconds } from '../lib/countdown-utils';
 import { formatDisplayAddress } from '../lib/address-display';
 import { usePoolFavorites } from '../lib/hooks/usePoolFavorites';
+import CountdownTimer from './CountdownTimer';
 
 interface MarketCardProps {
   market: ProcessedMarket;
@@ -54,17 +56,6 @@ export default function MarketCard({ market }: MarketCardProps) {
     }
   };
 
-  const getTimeDisplay = () => {
-    if (market.status === 'settled') {
-      return 'Settled';
-    } else if (market.status === 'expired') {
-      return 'Expired';
-    } else if (market.timeRemaining !== null) {
-      return formatTimeRemaining(market.timeRemaining);
-    } else {
-      return 'Expired';
-    }
-  };
 
   return (
     <Link href={`/markets/${market.poolId}`}>
@@ -155,8 +146,13 @@ export default function MarketCard({ market }: MarketCardProps) {
               <span>{formatSTXAmount(market.totalVolume)}</span>
             </div>
             <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span>{getTimeDisplay()}</span>
+              <CountdownTimer
+                secondsRemaining={
+                  market.status === 'expired' ? null : blocksToSeconds(market.timeRemaining)
+                }
+                settled={market.status === 'settled'}
+                showIcon
+              />
             </div>
           </div>
 
