@@ -10,7 +10,7 @@ export const TEST_CONTRACT_ID = 'CTEST_PREDINEX_CONTRACT_ADDRESS_123456789012345
 export const TEST_USER_ADDRESS = 'GBTEST_USER_ADDRESS_00000000000000000000000000000000000';
 export const TEST_SETTLER_ADDRESS = 'GBTEST_SETTLER_ADDRESS_0000000000000000000000000000000';
 
-export const ACTIVE_POOL: Pool = {
+export const ACTIVE_POOL = {
   id: 1,
   creator: TEST_USER_ADDRESS,
   title: 'Will ETH close above $4 000 on 1 Jul 2026?',
@@ -21,44 +21,44 @@ export const ACTIVE_POOL: Pool = {
   totalB: 300_000_000,   // 30 XLM
   participantCount: 8,
   settled: false,
-  winningOutcome: null,
+  winningOutcome: undefined,
   expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
   status: 'active',
-};
+} as unknown as Pool;
 
-export const SETTLED_POOL: Pool = {
+export const SETTLED_POOL = {
   ...ACTIVE_POOL,
   id: 2,
   settled: true,
   winningOutcome: 'A',
   status: 'settled',
-};
+} as unknown as Pool;
 
-export const EXPIRED_UNSETTLED_POOL: Pool = {
+export const EXPIRED_UNSETTLED_POOL = {
   ...ACTIVE_POOL,
   id: 3,
   settled: false,
   expiresAt: Math.floor(Date.now() / 1000) - 3600, // expired
   status: 'expired',
-};
+} as unknown as Pool;
 
 export const POPULATED_MARKETS: Pool[] = [ACTIVE_POOL, SETTLED_POOL, EXPIRED_UNSETTLED_POOL];
 
 /** The test user has bet on outcome A of pool #1. */
-export const USER_BET_ON_ACTIVE_POOL: UserBetData = {
+export const USER_BET_ON_ACTIVE_POOL = {
   poolId: 1,
   outcome: 0, // A
   amount: 50_000_000,  // 5 XLM
   address: TEST_USER_ADDRESS,
-};
+} as unknown as UserBetData;
 
 /** The test user won pool #2 (outcome A was the winner). */
-export const USER_BET_ON_SETTLED_POOL: UserBetData = {
+export const USER_BET_ON_SETTLED_POOL = {
   poolId: 2,
   outcome: 0, // A
   amount: 100_000_000, // 10 XLM
   address: TEST_USER_ADDRESS,
-};
+} as unknown as UserBetData;
 
 export const USER_BETS = [USER_BET_ON_ACTIVE_POOL, USER_BET_ON_SETTLED_POOL];
 

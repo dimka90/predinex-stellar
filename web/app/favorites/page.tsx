@@ -87,7 +87,7 @@ function FavoritesContent() {
         {/* Markets Grid */}
         {!isLoading && favoritePoolIds.length > 0 && (
           <>
-            <MarketGrid markets={displayMarkets} isLoading={isLoading} />
+            <MarketGrid markets={displayMarkets} isLoading={isLoading} error={error} onRetry={retry} />
 
             {error && (
               <div className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">

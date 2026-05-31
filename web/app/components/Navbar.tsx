@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { LogOut, Menu, X, Wallet, Moon, Sun, Radio } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Home, Menu, Settings, Wallet, Moon, Sun, Radio, X, Zap } from "lucide-react";
 import { useWallet } from './WalletAdapterProvider';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../../lib/theme';
 import { useI18n } from '../lib/i18n';
 import { ICON_CLASS } from "../lib/constants";
 import { WalletAddressCopyButton } from "../../components/WalletAddressCopyButton";
@@ -107,14 +108,24 @@ export default function Navbar() {
                             <div className="flex items-center gap-3">
                                 <WalletAddressCopyButton address={address} />
                                 <button
-                                    onClick={connect}
+                                    onClick={disconnect}
                                     className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-full border border-primary/20 transition-colors font-medium text-sm"
-                                    aria-label={t('nav.connectWallet')}
+                                    aria-label={t('nav.signOut')}
                                 >
                                     <Wallet className={ICON_CLASS.sm + " text-primary"} />
                                 </button>
-                            )}
-                        </div>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={connect}
+                                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-full transition-colors font-medium text-sm"
+                                aria-label={t('nav.connectWallet')}
+                            >
+                                <Wallet className={ICON_CLASS.sm} />
+                                {t('nav.connectWallet')}
+                            </button>
+                        )}
+                    </div>
 
                         {/* Mobile Menu Toggle - Show only when not connected */}
                         {!isConnected && (
