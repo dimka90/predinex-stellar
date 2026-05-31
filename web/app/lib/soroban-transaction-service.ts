@@ -4,8 +4,10 @@ import {
   nativeToScVal,
   Networks,
   rpc,
+  scValToNative,
   Transaction,
   TransactionBuilder,
+  xdr,
 } from '@stellar/stellar-sdk';
 import { FreighterWalletClient } from './freighter-adapter';
 
@@ -202,6 +204,65 @@ export class SorobanTransactionService {
       .build();
 
     return this.executeWithFeePrompt(tx, wallet, onStageChange, onFeeEstimated);
+  }
+
+  /**
+   * Submit a single `claim_all_winnings` call batching up to 20 pools. The
+   * contract claims every settled pool the user won in one atomic transaction
+   * and returns the per-pool payout entries.
+   */
+  async claimAllWinnings(
+    wallet: FreighterWalletClient,
+    contractId: string,
+    params: { poolIds: number[] },
+    onStageChange?: (stage: TxStage) => void,
+    onFeeEstimated?: (feeStroops: string) => Promise<boolean>
+  ): Promise<SorobanTxResult> {
+    if (!wallet.address) throw new Error('Wallet not connected');
+
+    // The contract caps a batch at 20 pools; never submit more than that.
+    const poolIds = params.poolIds.slice(0, 20);
+    if (poolIds.length === 0) throw new Error('No pools to claim');
+
+    const contract = new Contract(contractId);
+    const sourceAccount = await this.server.getAccount(wallet.address);
+
+    const poolIdsVec = xdr.ScVal.scvVec(
+      poolIds.map((id) => nativeToScVal(id, { type: 'u32' }))
+    );
+
+    const tx = new TransactionBuilder(sourceAccount, {
+      fee: '1000',
+      networkPassphrase: this.networkPassphrase,
+    })
+      .addOperation(
+        contract.call(
+          'claim_all_winnings',
+          new Address(wallet.address).toScVal(),
+          poolIdsVec
+        )
+      )
+      .setTimeout(30)
+      .build();
+
+    return this.executeWithFeePrompt(tx, wallet, onStageChange, onFeeEstimated);
+  }
+
+  /**
+   * Decode the `Vec<ClaimAllEntry>` returned by `claim_all_winnings` into the
+   * list of pool ids that actually paid out. The contract skips pools that
+   * aren't claimable (not settled, losing, or already claimed), so this may be
+   * a subset of the requested ids — that subset drives the partial-claim UI.
+   */
+  static decodeClaimedPoolIds(returnValue: xdr.ScVal | undefined): number[] {
+    if (!returnValue) return [];
+    try {
+      const entries = scValToNative(returnValue) as Array<{ pool_id: number | bigint }>;
+      if (!Array.isArray(entries)) return [];
+      return entries.map((e) => Number(e.pool_id));
+    } catch {
+      return [];
+    }
   }
 
   async settlePool(

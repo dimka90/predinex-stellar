@@ -117,6 +117,11 @@ function DashboardContent() {
                       // useClaimWinnings already records the failure state and toast.
                     });
                   }}
+                  userAddress={stxAddress}
+                  onClaimAllSuccess={() => {
+                    refreshActivity();
+                    refreshBets();
+                  }}
                   isLoading={betsLoading}
                 />
               )}

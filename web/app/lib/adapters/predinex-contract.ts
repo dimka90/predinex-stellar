@@ -219,6 +219,37 @@ export const predinexContract = {
   },
 
   /**
+   * Submit a `claim_all_winnings` Soroban contract call batching up to 20
+   * pools in a single transaction (wallet prompt).
+   */
+  async claimAllWinningsSoroban(params: {
+    wallet: FreighterWalletClient;
+    poolIds: number[];
+    onStageChange?: (stage: TxStage) => void;
+    onFeeEstimated?: (feeStroops: string) => Promise<boolean>;
+  }): Promise<{ txHash: string; claimedPoolIds: number[] }> {
+    const { soroban } = getRuntimeConfig();
+    const service = getSorobanService();
+
+    const result = await service.claimAllWinnings(
+      params.wallet,
+      soroban.contractId,
+      { poolIds: params.poolIds },
+      params.onStageChange,
+      params.onFeeEstimated
+    );
+
+    if (result.status === 'FAILED') {
+      throw new Error(result.error || 'Transaction failed');
+    }
+
+    // Which pools actually paid out (the contract skips non-claimable ones).
+    const claimedPoolIds = SorobanTransactionService.decodeClaimedPoolIds(result.returnValue);
+
+    return { txHash: result.txHash, claimedPoolIds };
+  },
+
+  /**
    * Submit a `settle_pool` Soroban contract call (wallet prompt).
    */
   async settlePoolSoroban(params: {
