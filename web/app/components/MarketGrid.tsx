@@ -10,6 +10,7 @@ interface MarketGridProps {
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
+  onResetFilters?: () => void;
   searchQuery?: string;
   hasFilters?: boolean;
 }
@@ -19,6 +20,7 @@ export default function MarketGrid({
   isLoading, 
   error, 
   onRetry,
+  onResetFilters,
   searchQuery = '',
   hasFilters = false
 }: MarketGridProps) {
@@ -111,7 +113,7 @@ export default function MarketGrid({
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => window.location.reload()}
+                onClick={onResetFilters}
                 className="px-4 py-2 border border-muted/50 rounded-lg hover:bg-muted/50 
                          transition-colors duration-200"
               >

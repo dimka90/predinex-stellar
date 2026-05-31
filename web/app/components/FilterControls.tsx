@@ -8,9 +8,10 @@ interface FilterControlsProps {
   onStatusChange: (status: StatusFilter) => void;
   counts?: {
     all: number;
-    active: number;
+    open?: number;
+    active?: number;
     settled: number;
-    expired: number;
+    disputed?: number;
   };
 }
 
@@ -29,8 +30,8 @@ const filterOptions: FilterOption[] = [
     description: 'Show all markets regardless of status'
   },
   {
-    value: 'active',
-    label: 'Active',
+    value: 'open',
+    label: 'Open',
     icon: <Clock className="w-4 h-4" />,
     description: 'Markets currently accepting bets'
   },
@@ -41,10 +42,10 @@ const filterOptions: FilterOption[] = [
     description: 'Markets with determined outcomes'
   },
   {
-    value: 'expired',
-    label: 'Expired',
+    value: 'disputed',
+    label: 'Disputed',
     icon: <XCircle className="w-4 h-4" />,
-    description: 'Markets past expiry without settlement'
+    description: 'Markets with an active dispute'
   }
 ];
 
@@ -61,11 +62,11 @@ export default function FilterControls({
     switch (status) {
       case 'all':
         return 'text-primary border-primary bg-primary/10';
-      case 'active':
+      case 'open':
         return 'text-green-500 border-green-500 bg-green-500/10';
       case 'settled':
         return 'text-blue-500 border-blue-500 bg-blue-500/10';
-      case 'expired':
+      case 'disputed':
         return 'text-red-500 border-red-500 bg-red-500/10';
       default:
         return 'text-muted-foreground border-muted/30';
@@ -74,6 +75,7 @@ export default function FilterControls({
 
   const getCount = (status: StatusFilter): number => {
     if (!counts) return 0;
+    if (status === 'open') return counts.open ?? counts.active ?? 0;
     return counts[status] || 0;
   };
 

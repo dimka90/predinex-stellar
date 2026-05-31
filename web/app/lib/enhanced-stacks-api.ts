@@ -109,6 +109,9 @@ export async function getEnhancedPool(poolId: number): Promise<PoolData | null> 
       createdAt: Number(value['created-at'] || 0),
       settledAt: value['settled-at'] ? Number(value['settled-at']) : null,
       expiry: Number(value.expiry || 0),
+      participantCount: Number(value['participant-count'] ?? value.participant_count ?? 0),
+      assetType: typeof value['asset-type'] === 'string' ? value['asset-type'] : undefined,
+      disputed: Boolean(value.disputed ?? value['is-disputed'] ?? false),
     };
   } catch (e) {
     console.error(`Failed to fetch pool ${poolId} after retries`, e);
@@ -165,6 +168,9 @@ export async function getPoolsBatch(startId: number, count: number): Promise<Poo
           createdAt: Number(poolData['created-at'] || 0),
           settledAt: poolData['settled-at'] ? Number(poolData['settled-at']) : null,
           expiry: Number(poolData.expiry || 0),
+          participantCount: Number(poolData['participant-count'] ?? poolData.participant_count ?? 0),
+          assetType: typeof poolData['asset-type'] === 'string' ? poolData['asset-type'] : undefined,
+          disputed: Boolean(poolData.disputed ?? poolData['is-disputed'] ?? false),
         });
       }
     }

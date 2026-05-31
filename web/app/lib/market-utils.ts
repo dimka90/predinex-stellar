@@ -76,7 +76,10 @@ export function processMarketData(pool: PoolData, currentBlockHeight: number): P
     timeRemaining,
     createdAt: pool.createdAt,
     settledAt: pool.settledAt,
-    creator: pool.creator
+    creator: pool.creator,
+    participantCount: pool.participantCount,
+    assetType: pool.assetType,
+    disputed: pool.disputed,
   };
 }
 
