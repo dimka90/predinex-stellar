@@ -13,6 +13,7 @@ mod protocol_fee_tests;
 mod test;
 mod validation_hardening_tests;
 mod validation_prop_tests;
+mod webhook_tests;
 
 // ── Issue #175: Event schema versioning ──────────────────────────────────────
 //
@@ -139,6 +140,8 @@ pub enum DataKey {
     /// Minimum number of participants a pool must have before it can be settled.
     /// Set by the treasury recipient; defaults to `DEFAULT_MIN_SETTLEMENT_PARTICIPANTS`.
     MinSettlementParticipants,
+    /// #396 — Registered off-chain notification webhooks (Vec<Webhook>).
+    Webhooks,
 }
 
 // #189 — TTL bump policy for persistent storage entries.
@@ -169,6 +172,11 @@ const MAX_FEE_TIERS: u32 = 5;
 /// preserves the historical behaviour of allowing any pool with at least one
 /// bettor to settle while blocking settlement of completely empty pools.
 const DEFAULT_MIN_SETTLEMENT_PARTICIPANTS: u32 = 1;
+
+/// #396 — Maximum webhooks that can be registered per contract instance.
+const MAX_WEBHOOKS: u32 = 10;
+/// #396 — Maximum byte length for a webhook URL.
+const MAX_WEBHOOK_URL_LENGTH: u32 = 512;
 
 /// #151 — Minimum pool lifetime in seconds (matches `web/docs/POOL_DURATION.md`).
 const MIN_POOL_DURATION_SECS: u64 = 300;
@@ -267,6 +275,12 @@ pub enum ContractError {
     /// Settlement attempted on a pool with fewer participants than the
     /// configured `MinSettlementParticipants` threshold.
     InsufficientParticipants = 51,
+    /// #396 — Webhook registration limit (10) already reached.
+    WebhookLimitReached = 52,
+    /// #396 — Webhook URL is invalid (must start with https://).
+    InvalidWebhookUrl = 53,
+    /// #396 — No webhook found matching the given URL.
+    WebhookNotFound = 54,
 }
 
 /// #176 — Settlement source tag indicating who initiated pool settlement.
@@ -280,6 +294,32 @@ pub enum SettlementSource {
     Creator,
     /// A delegated operator (assigned via `assign_settler`) called `settle_pool`.
     Operator,
+}
+
+/// #396 — Event types that can trigger an off-chain webhook notification.
+///
+/// Stored inside a `Webhook` entry; an indexer/satsuma that reads the contract
+/// ledger uses this list to decide which on-chain events it should forward as
+/// an HTTP POST to the registered URL.
+#[derive(Clone, PartialEq, Debug)]
+#[contracttype]
+pub enum WebhookEventType {
+    PoolCreated = 0,
+    BetPlaced = 1,
+    PoolSettled = 2,
+    ClaimProcessed = 3,
+    PoolDisputed = 4,
+}
+
+/// #396 — A single webhook registration entry.
+///
+/// `url` must be an HTTPS URL (validated on registration). `event_types`
+/// lists the contract events the off-chain indexer should forward to `url`.
+#[derive(Clone)]
+#[contracttype]
+pub struct Webhook {
+    pub url: String,
+    pub event_types: Vec<WebhookEventType>,
 }
 
 /// Explicit lifecycle status for a prediction pool.
@@ -4627,5 +4667,147 @@ impl PredinexContract {
             .persistent()
             .get::<_, i128>(&DataKey::TotalContractVolume)
             .unwrap_or(0)
+    }
+
+    // ── #396 Webhook management ───────────────────────────────────────────────
+
+    /// Register (or update) an off-chain webhook subscription.
+    ///
+    /// Only callable by the treasury recipient. The `url` must start with
+    /// `https://` and be at most 512 bytes long. A maximum of 10 webhooks may
+    /// be registered per contract. If a webhook with the same URL already
+    /// exists its event-type list is replaced in-place (does not count toward
+    /// the cap). Emits a `webhook_registered` event on success.
+    pub fn register_webhook(
+        env: Env,
+        caller: Address,
+        url: String,
+        event_types: Vec<WebhookEventType>,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        Self::require_treasury_recipient(&env, &caller)?;
+
+        // URL must be HTTPS and within the length cap.
+        if url.len() > MAX_WEBHOOK_URL_LENGTH || !Self::string_starts_with(&url, b"https://") {
+            return Err(ContractError::InvalidWebhookUrl);
+        }
+
+        let mut webhooks: Vec<Webhook> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Webhooks)
+            .unwrap_or_else(|| Vec::new(&env));
+
+        // Check for an existing entry with the same URL; replace it in-place.
+        let mut replaced = false;
+        let mut i = 0u32;
+        while i < webhooks.len() {
+            let existing = webhooks.get(i).unwrap();
+            if existing.url == url {
+                webhooks.set(
+                    i,
+                    Webhook {
+                        url: url.clone(),
+                        event_types: event_types.clone(),
+                    },
+                );
+                replaced = true;
+                break;
+            }
+            i += 1;
+        }
+
+        // No existing entry — enforce the 10-webhook cap before inserting.
+        if !replaced {
+            if webhooks.len() >= MAX_WEBHOOKS {
+                return Err(ContractError::WebhookLimitReached);
+            }
+            webhooks.push_back(Webhook {
+                url: url.clone(),
+                event_types: event_types.clone(),
+            });
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Webhooks, &webhooks);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Webhooks,
+            POOL_BUMP_THRESHOLD,
+            POOL_BUMP_TARGET,
+        );
+
+        env.events().publish(
+            (
+                Symbol::new(&env, "webhook_registered"),
+                event_version(&env),
+            ),
+            (url, event_types.len()),
+        );
+        Ok(())
+    }
+
+    /// Remove a previously registered webhook by its URL.
+    ///
+    /// Only callable by the treasury recipient. Returns `WebhookNotFound` when
+    /// no entry matches. Emits a `webhook_unregistered` event on success.
+    pub fn unregister_webhook(
+        env: Env,
+        caller: Address,
+        url: String,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        Self::require_treasury_recipient(&env, &caller)?;
+
+        let mut webhooks: Vec<Webhook> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Webhooks)
+            .unwrap_or_else(|| Vec::new(&env));
+
+        let mut found_index: Option<u32> = None;
+        let mut i = 0u32;
+        while i < webhooks.len() {
+            if webhooks.get(i).unwrap().url == url {
+                found_index = Some(i);
+                break;
+            }
+            i += 1;
+        }
+
+        let idx = found_index.ok_or(ContractError::WebhookNotFound)?;
+        webhooks.remove(idx);
+
+        if webhooks.is_empty() {
+            env.storage().persistent().remove(&DataKey::Webhooks);
+        } else {
+            env.storage()
+                .persistent()
+                .set(&DataKey::Webhooks, &webhooks);
+            env.storage().persistent().extend_ttl(
+                &DataKey::Webhooks,
+                POOL_BUMP_THRESHOLD,
+                POOL_BUMP_TARGET,
+            );
+        }
+
+        env.events().publish(
+            (
+                Symbol::new(&env, "webhook_unregistered"),
+                event_version(&env),
+            ),
+            url,
+        );
+        Ok(())
+    }
+
+    /// Return all currently registered webhooks.
+    ///
+    /// Returns an empty `Vec` when no webhooks have been registered.
+    pub fn get_webhooks(env: Env) -> Vec<Webhook> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Webhooks)
+            .unwrap_or_else(|| Vec::new(&env))
     }
 }
