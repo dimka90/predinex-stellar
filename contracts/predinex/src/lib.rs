@@ -8,6 +8,7 @@ use soroban_sdk::{
 mod bet_management_tests;
 mod fuzz_tests;
 mod multi_user_tests;
+mod benchmarks;
 mod pause_tests;
 mod protocol_fee_tests;
 mod test;
