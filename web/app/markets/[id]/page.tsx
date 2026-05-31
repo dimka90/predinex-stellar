@@ -10,6 +10,11 @@ import { useEffect, useState, useCallback } from "react";
 import { useUserActivity } from "../../hooks/useUserActivity";
 import { predinexReadApi } from "../../lib/adapters/predinex-read-api";
 import type { Pool } from "../../lib/adapters/types";
+import { fetchCurrentBlockHeightLive } from "../../lib/market-utils";
+import { blocksToSeconds } from "../../lib/countdown-utils";
+import CountdownTimer from "../../components/CountdownTimer";
+import DisputeHistoryTimeline from "../../components/DisputeHistoryTimeline";
+import { useDisputeHistory } from "../../lib/hooks/useDisputeHistory";
 import { TrendingUp, Users, Clock, RefreshCw, AlertCircle, Star, StarOff } from "lucide-react";
 import { use } from "react";
 import ShareButton from "../../../components/ShareButton";
@@ -24,8 +29,14 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
     const { activities, refresh: refreshActivity } = useUserActivity(stxAddress ?? undefined, 50);
     const { isFavorite, toggleFavorite } = usePoolFavorites();
     const favorite = isFavorite(poolId);
+    const {
+        events: disputeEvents,
+        isLoading: isLoadingDisputes,
+        error: disputeError,
+    } = useDisputeHistory(Number.isNaN(poolId) ? undefined : poolId);
 
     const [pool, setPool] = useState<Pool | null>(null);
+    const [currentBlockHeight, setCurrentBlockHeight] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -47,6 +58,21 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
         };
         loadPool();
     }, [poolId]);
+
+    // Fetch the chain tip so the expiry block can be rendered as a live countdown.
+    useEffect(() => {
+        let cancelled = false;
+        fetchCurrentBlockHeightLive()
+            .then(({ height }) => {
+                if (!cancelled && height > 0) setCurrentBlockHeight(height);
+            })
+            .catch(() => {
+                /* Non-blocking: fall back to a plain expiry block label. */
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         if (!stxAddress || !poolId) {
@@ -234,7 +260,15 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                         <div className="bg-muted/50 p-4 rounded-lg text-center">
                             <Clock className="w-5 h-5 mx-auto mb-2 text-yellow-500" />
                             <p className="text-sm text-muted-foreground">Expires</p>
-                            <p className="font-bold">Block {pool.expiry}</p>
+                            {currentBlockHeight !== null ? (
+                                <CountdownTimer
+                                    className="font-bold justify-center"
+                                    secondsRemaining={blocksToSeconds(pool.expiry - currentBlockHeight)}
+                                    settled={pool.settled}
+                                />
+                            ) : (
+                                <p className="font-bold">Block {pool.expiry}</p>
+                            )}
                         </div>
                     </div>
 
@@ -315,6 +349,12 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                             />
                         </div>
                     )}
+
+                    <DisputeHistoryTimeline
+                        events={disputeEvents}
+                        isLoading={isLoadingDisputes}
+                        error={disputeError}
+                    />
                 </div>
             </div>
         </main>

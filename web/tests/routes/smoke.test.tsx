@@ -124,6 +124,27 @@ vi.mock('../../app/lib/hooks/useWalletConnect', () => ({
   useWalletConnect: vi.fn(() => ({ session: null })),
 }));
 
+vi.mock('../../app/lib/hooks/usePoolFavorites', () => ({
+  usePoolFavorites: vi.fn(() => ({ isFavorite: vi.fn(() => false), toggleFavorite: vi.fn() })),
+}));
+
+vi.mock('../../app/lib/adapters/predinex-read-api', () => ({
+  predinexReadApi: {
+    getPool: vi.fn(() => Promise.resolve(null)),
+    getUserBet: vi.fn(() => Promise.resolve(null)),
+  },
+}));
+
+vi.mock('../../lib/hooks/useNetworkMismatch', () => ({
+  useNetworkMismatch: vi.fn(() => ({
+    isMismatch: false,
+    expectedNetworkName: 'Stellar Testnet',
+    currentNetworkName: 'Stellar Testnet',
+    expectedNetworkType: 'testnet',
+    switchNetwork: vi.fn(),
+  })),
+}));
+
 // ── Component mocks (heavy/async dependencies) ────────────────────────────────
 
 vi.mock('../../app/components/Hero', () => ({
@@ -234,6 +255,7 @@ vi.mock('@stacks/connect', () => ({
 
 import HomePage from '../../app/page';
 import MarketsPage from '../../app/markets/page';
+import PoolDetailPage from '../../app/markets/[id]/page';
 import CreatePage from '../../app/create/page';
 import DashboardPage from '../../app/dashboard/page';
 import DisputesPage from '../../app/disputes/page';
@@ -300,6 +322,14 @@ describe('Route smoke tests', () => {
 
   it('/incentives renders without crashing', () => {
     renderWithProviders(<IncentivesPage />);
+    expect(screen.getByRole('main')).toBeInTheDocument();
+  });
+
+  it('/markets/[id] renders without crashing (loading state)', () => {
+    // Params resolve asynchronously; the page shows a loading skeleton first.
+    renderWithProviders(
+      <PoolDetailPage params={Promise.resolve({ id: '1' })} />
+    );
     expect(screen.getByRole('main')).toBeInTheDocument();
   });
 });

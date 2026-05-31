@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Navbar from '../components/Navbar';
 import AuthGuard from '../components/AuthGuard';
 import ActivityFeed from '../components/ActivityFeed';
+import ActivityExportButton from '../components/ActivityExportButton';
 import { useWallet } from '../components/WalletAdapterProvider';
 import { useUserActivity } from '../hooks/useUserActivity';
 import { Activity, ChevronLeft, ChevronRight, Target, Trophy, TrendingUp } from 'lucide-react';
@@ -64,13 +65,21 @@ export default function ActivityPage() {
       <Navbar />
       <AuthGuard>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="glass-panel p-8 rounded-2xl mb-8">
-            <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
-              Transaction History
-            </h1>
-            <p className="text-muted-foreground">
-              Review Type, Pool, Amount, Date, Status, and Stellar Explorer links for your on-chain activity.
-            </p>
+          <div className="glass-panel p-8 rounded-2xl mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
+                Transaction History
+              </h1>
+              <p className="text-muted-foreground">
+                Review Type, Pool, Amount, Date, Status, and Stellar Explorer links for your on-chain activity.
+              </p>
+            </div>
+            <ActivityExportButton
+              activities={filteredActivities}
+              fromDate={fromDate}
+              toDate={toDate}
+              disabled={isLoading || filteredActivities.length === 0}
+            />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

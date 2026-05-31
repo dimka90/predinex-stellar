@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LogOut, Menu, X, Wallet, Moon, Sun, Home, Zap, Settings } from "lucide-react";
+import { LogOut, Menu, X, Wallet, Moon, Sun, Radio } from "lucide-react";
 import { useWallet } from './WalletAdapterProvider';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../lib/i18n';
 import { ICON_CLASS } from "../lib/constants";
 import { WalletAddressCopyButton } from "../../components/WalletAddressCopyButton";
 import { NetworkMismatchWarning } from './NetworkMismatchWarning';
+import { useNetworkMismatch } from '@/lib/hooks/useNetworkMismatch';
 
 export default function Navbar() {
     const pathname = usePathname();
     const { isConnected, address, connect, disconnect } = useWallet();
     const { theme, toggleTheme } = useTheme();
+    const { isMismatch, expectedNetworkName, currentNetworkName } = useNetworkMismatch();
     const { t } = useI18n();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
@@ -77,29 +78,34 @@ export default function Navbar() {
                             </Link>
                         </div>
 
-                        {/* User Info & Connect Button - Desktop */}
-                        <div className="hidden md:flex items-center gap-4">
-                            <button
-                                onClick={toggleTheme}
-                                className="p-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-110 active:scale-95"
-                                aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-                                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                    {/* User Info & Connect Button - Desktop */}
+                    <div className="hidden md:flex items-center gap-4">
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-110 active:scale-95"
+                            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                        >
+                            {theme === 'light' ? <Moon className={ICON_CLASS.sm} /> : <Sun className={ICON_CLASS.sm} />}
+                        </button>
+                        {/* Network badge — visible only when wallet is connected */}
+                        {isConnected && (
+                            <span
+                                title={isMismatch ? `Wallet is on ${currentNetworkName}; app requires ${expectedNetworkName}` : `Connected to ${currentNetworkName}`}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                                    isMismatch
+                                        ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
+                                        : 'bg-green-500/10 border-green-500/30 text-green-500'
+                                }`}
                             >
-                                {theme === 'light' ? <Moon className={ICON_CLASS.sm} /> : <Sun className={ICON_CLASS.sm} />}
-                            </button>
-                            {isConnected && address ? (
-                                <div className="flex items-center gap-3">
-                                    <WalletAddressCopyButton address={address} />
-                                    <button
-                                        onClick={disconnect}
-                                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-full border border-red-500/20 transition-all hover:scale-110 active:scale-95"
-                                        aria-label="Sign out"
-                                        title={t('nav.signOut')}
-                                    >
-                                        <LogOut className={ICON_CLASS.sm} />
-                                    </button>
-                                </div>
-                            ) : (
+                                <Radio className="w-3 h-3" />
+                                {isMismatch ? currentNetworkName : expectedNetworkName}
+                            </span>
+                        )}
+
+                        {isConnected && address ? (
+                            <div className="flex items-center gap-3">
+                                <WalletAddressCopyButton address={address} />
                                 <button
                                     onClick={connect}
                                     className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-full border border-primary/20 transition-colors font-medium text-sm"
@@ -146,6 +152,21 @@ export default function Navbar() {
                 {isMenuOpen && (
                     <div className="md:hidden glass border-t border-border animate-in slide-in-from-top-4 duration-300">
                         <div className="px-4 pt-2 pb-6 space-y-1">
+                            {/* Network badge — mobile */}
+                            {isConnected && (
+                                <div className="px-3 py-2">
+                                    <span
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                                            isMismatch
+                                                ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500'
+                                                : 'bg-green-500/10 border-green-500/30 text-green-500'
+                                        }`}
+                                    >
+                                        <Radio className="w-3 h-3" />
+                                        {isMismatch ? `Wrong network: ${currentNetworkName}` : expectedNetworkName}
+                                    </span>
+                                </div>
+                            )}
                             <Link
                                 href="/markets"
                                 className={`block px-3 py-2 text-base font-medium rounded-lg transition-colors ${

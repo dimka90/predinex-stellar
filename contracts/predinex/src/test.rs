@@ -3495,3 +3495,235 @@ fn test_pool_templates_are_treasury_managed_and_create_pools_with_overrides() {
     t.client.delete_pool_template(&t.admin, &template_id);
     assert_eq!(t.client.get_templates().len(), 0);
 }
+
+// ============================================================================
+// Issue #411: list_pools — paginated pool listing
+// ============================================================================
+
+#[test]
+fn test_list_pools_empty_returns_empty() {
+    // No pools created — any start should return empty.
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(PredinexContract, ());
+    let client = PredinexContractClient::new(&env, &contract_id);
+    let result = client.list_pools(&1, &20);
+    assert_eq!(result.len(), 0, "no pools created must return empty vec");
+}
+
+#[test]
+fn test_list_pools_start_beyond_count_returns_empty() {
+    let t = setup();
+    make_pool(&t);
+    make_pool(&t);
+    // start=100 is beyond the 2 pools that exist.
+    let result = t.client.list_pools(&100, &10);
+    assert_eq!(result.len(), 0, "start beyond pool count must return empty");
+}
+
+#[test]
+fn test_list_pools_exact_page_returns_all() {
+    let t = setup();
+    make_pool(&t);
+    make_pool(&t);
+    make_pool(&t);
+    // pool IDs are 1-based; start=1, limit=3 should return all 3.
+    let result = t.client.list_pools(&1, &3);
+    assert_eq!(result.len(), 3, "exact page must return all pools");
+}
+
+#[test]
+fn test_list_pools_partial_page_at_boundary() {
+    let t = setup();
+    make_pool(&t);
+    make_pool(&t);
+    make_pool(&t);
+    // start=3, limit=10 — only pool 3 remains.
+    let result = t.client.list_pools(&3, &10);
+    assert_eq!(result.len(), 1, "partial page at boundary must return remaining pools");
+}
+
+#[test]
+fn test_list_pools_limit_capped_at_20() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(PredinexContract, ());
+    let client = PredinexContractClient::new(&env, &contract_id);
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
+    client.initialize(&token_id.address(), &token_admin);
+    let creator = Address::generate(&env);
+    // Create 25 pools.
+    for i in 0..25u64 {
+        client.create_pool(
+            &creator,
+            &String::from_str(&env, &std::format!("Pool {}", i)),
+            &String::from_str(&env, "Desc"),
+            &String::from_str(&env, "Yes"),
+            &String::from_str(&env, "No"),
+            &3_600u64,
+        );
+    }
+    // Requesting 50 must be capped at 20.
+    let result = client.list_pools(&1, &50);
+    assert_eq!(result.len(), 20, "limit must be capped at 20");
+}
+
+#[test]
+fn test_list_pools_insertion_order_preserved() {
+    let t = setup();
+    let id1 = make_pool(&t);
+    let id2 = make_pool(&t);
+    let id3 = make_pool(&t);
+    let result = t.client.list_pools(&1, &3);
+    assert_eq!(result.len(), 3);
+    // Pools are returned in ascending ID order (insertion order).
+    assert_eq!(result.get(0).unwrap().creator, t.client.get_pool(&id1).unwrap().creator);
+    assert_eq!(result.get(1).unwrap().creator, t.client.get_pool(&id2).unwrap().creator);
+    assert_eq!(result.get(2).unwrap().creator, t.client.get_pool(&id3).unwrap().creator);
+}
+
+#[test]
+fn test_list_pools_second_page() {
+    let t = setup();
+    make_pool(&t); // id 1
+    make_pool(&t); // id 2
+    make_pool(&t); // id 3
+    make_pool(&t); // id 4
+    make_pool(&t); // id 5
+
+    let page1 = t.client.list_pools(&1, &2);
+    assert_eq!(page1.len(), 2);
+
+    let page2 = t.client.list_pools(&3, &2);
+    assert_eq!(page2.len(), 2);
+
+    let page3 = t.client.list_pools(&5, &2);
+    assert_eq!(page3.len(), 1);
+}
+
+// ============================================================================
+// Issue #412: claim_expired — refund from expired unsettled pools
+// ============================================================================
+
+#[test]
+fn test_claim_expired_successful_refund() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    // Place a bet then let the pool expire without settling.
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &300i128, &None::<Address>);
+
+    // Advance past expiry.
+    t.env.ledger().with_mut(|li| li.timestamp = 7_200);
+
+    let token = soroban_sdk::token::Client::new(&t.env, &t.token);
+    let balance_before = token.balance(&t.user);
+
+    let refund = t.client.claim_expired(&t.user, &pool_id);
+
+    assert_eq!(refund, 300i128, "refund must equal original bet");
+    assert_eq!(
+        token.balance(&t.user),
+        balance_before + 300,
+        "tokens must be returned to user"
+    );
+}
+
+#[test]
+fn test_claim_expired_no_fee_deducted() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &500i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 7_200);
+
+    let refund = t.client.claim_expired(&t.user, &pool_id);
+    // Full amount back — no protocol fee on expired refunds.
+    assert_eq!(refund, 500i128, "no fee must be deducted from expired refund");
+}
+
+#[test]
+fn test_claim_expired_double_claim_rejected() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &200i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 7_200);
+
+    // First claim succeeds.
+    t.client.claim_expired(&t.user, &pool_id);
+
+    // Second claim must panic — bet record was removed.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        t.client.claim_expired(&t.user, &pool_id);
+    }));
+    assert!(result.is_err(), "double claim must be rejected");
+}
+
+#[test]
+#[should_panic]
+fn test_claim_expired_on_active_pool_rejected() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &100i128, &None::<Address>);
+
+    // Ledger is still before expiry — must panic.
+    t.client.claim_expired(&t.user, &pool_id);
+}
+
+#[test]
+#[should_panic]
+fn test_claim_expired_on_settled_pool_rejected() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    let loser = Address::generate(&t.env);
+    let token_admin = soroban_sdk::token::StellarAssetClient::new(&t.env, &t.token);
+    token_admin.mint(&loser, &200);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &200i128, &None::<Address>);
+    t.client
+        .place_bet(&loser, &pool_id, &1u32, &200i128, &None::<Address>);
+
+    t.env.ledger().with_mut(|li| li.timestamp = 7_200);
+    t.client.settle_pool(&t.admin, &pool_id, &0u32);
+
+    // Pool is now Settled — claim_expired must panic.
+    t.client.claim_expired(&t.user, &pool_id);
+}
+
+#[test]
+#[should_panic]
+fn test_claim_expired_no_bet_rejected() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.env.ledger().with_mut(|li| li.timestamp = 7_200);
+
+    // User never placed a bet — must panic.
+    let no_bet_user = Address::generate(&t.env);
+    t.client.claim_expired(&no_bet_user, &pool_id);
+}
+
+#[test]
+fn test_claim_expired_removes_bet_record() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &150i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 7_200);
+
+    t.client.claim_expired(&t.user, &pool_id);
+
+    // Bet record must be gone after claim.
+    let bet = t.client.get_user_bet(&pool_id, &t.user);
+    assert!(bet.is_none(), "bet record must be removed after claim_expired");
+}

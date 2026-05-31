@@ -122,6 +122,8 @@ We welcome contributions! Please read the [Contributing Guide](./CONTRIBUTING.md
 
 Additional development guides:
 - [Local End-to-End Runbook](./docs/local-runbook.md) — build the contract, deploy to testnet, and wire the web app from a clean checkout
+- [Contract API Reference](./docs/contract-api.md) — every public function, data types, auth requirements, fee model, and events
+- [Deployment Guide](./docs/deployment-guide.md) — build WASM, deploy to testnet/pubnet, initialize, and verify
 - [Frontend Development](./web/DEVELOPMENT.md)
 - [Release Process](./RELEASE.md)
 
