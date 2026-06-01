@@ -299,7 +299,7 @@ fn c9_min_bet_rechecked_after_cancellation() {
     // Cancelling 250 would leave 50, below the 100 minimum → rejected.
     assert_eq!(
         t.client.try_cancel_bet(&user, &pool_id, &0u32, &250i128),
-        Err(Ok(ContractError::BetBelowMinBet)),
+        Err(Ok(ContractError::InvalidBetAmount)),
         "remaining stake below the min bet must be rejected"
     );
 

@@ -20,7 +20,7 @@ mod validation_hardening_tests;
 mod validation_prop_tests;
 mod fuzz;
 mod e2e_tests;
-mod webhook_tests;
+mod webhook_test;
 
 // ── Issue #175: Event schema versioning ──────────────────────────────────────
 //
@@ -155,6 +155,9 @@ pub enum DataKey {
     MinSettlementParticipants,
     /// #396 — Registered off-chain notification webhooks (Vec<Webhook>).
     Webhooks,
+    PoolTwapPeriod(u32),
+    TwapState(u32, u32),
+    TwapSnapshots(u32, u32),
 }
 
 // #189 — TTL bump policy for persistent storage entries.
@@ -248,8 +251,6 @@ pub enum ContractError {
     PoolNotOpen = 10,
     PoolAlreadySettled = 11,
     PoolAlreadyVoided = 12,
-    PoolAlreadyFrozen = 13,
-    PoolAlreadyDisputed = 14,
     PoolIsCancelled = 15,
     PoolIsFrozen = 16,
     PoolIsDisputed = 17,
@@ -278,28 +279,14 @@ pub enum ContractError {
     PoolTotalOverflow = 41,
     UserBetOverflow = 42,
     TreasuryOverflow = 43,
-    /// Bet amount is below the configured per-pool minimum.
-    BetBelowMinBet = 44,
-    /// Bet amount is above the configured per-pool maximum.
-    BetAboveMaxBet = 45,
-    /// Current pool size exceeds configured circuit-breaker maximum.
     PoolSizeLimitExceeded = 46,
-    /// Cooling period setting is invalid for current threshold config.
     InvalidCoolingPeriod = 47,
-    /// Configured rate-limit values are invalid.
     InvalidRateLimitConfig = 48,
-    /// Wallet exceeded allowed request rate.
     RateLimitExceeded = 49,
-    /// #350 — Operation blocked because contract is paused.
     ContractPaused = 50,
-    /// Settlement attempted on a pool with fewer participants than the
-    /// configured `MinSettlementParticipants` threshold.
     InsufficientParticipants = 51,
-    /// #396 — Webhook registration limit (10) already reached.
     WebhookLimitReached = 52,
-    /// #396 — Webhook URL is invalid (must start with https://).
     InvalidWebhookUrl = 53,
-    /// #396 — No webhook found matching the given URL.
     WebhookNotFound = 54,
 }
 
@@ -2202,11 +2189,11 @@ impl PredinexContract {
             .unwrap_or(DEFAULT_MAX_BET_STROOPS);
 
         if min_bet > 0 && amount < min_bet {
-            return Err(ContractError::BetBelowMinBet);
+            return Err(ContractError::InvalidBetAmount);
         }
         // max_bet == 0 => no maximum.
         if max_bet > 0 && amount > max_bet {
-            return Err(ContractError::BetAboveMaxBet);
+            return Err(ContractError::InvalidBetAmount);
         }
 
         let mut totals = Self::read_outcome_totals(&env, pool_id, &pool);
@@ -2700,10 +2687,10 @@ impl PredinexContract {
                 .get::<_, i128>(&DataKey::PoolMaxBet(pool_id))
                 .unwrap_or(DEFAULT_MAX_BET_STROOPS);
             if min_bet > 0 && remaining < min_bet {
-                return Err(ContractError::BetBelowMinBet);
+                return Err(ContractError::InvalidBetAmount);
             }
             if max_bet > 0 && remaining > max_bet {
-                return Err(ContractError::BetAboveMaxBet);
+                return Err(ContractError::InvalidBetAmount);
             }
         }
 
@@ -4149,7 +4136,7 @@ impl PredinexContract {
             .ok_or(ContractError::PoolNotFound)?;
 
         if pool.status == PoolStatus::Frozen {
-            return Err(ContractError::PoolAlreadyFrozen);
+            return Err(ContractError::PoolIsFrozen);
         }
 
         pool.status = PoolStatus::Frozen;
@@ -4190,7 +4177,7 @@ impl PredinexContract {
         }
 
         if pool.status == PoolStatus::Disputed {
-            return Err(ContractError::PoolAlreadyDisputed);
+            return Err(ContractError::PoolIsDisputed);
         }
 
         pool.status = PoolStatus::Disputed;

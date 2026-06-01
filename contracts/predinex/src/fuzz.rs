@@ -241,8 +241,6 @@ fn fuzz_place_bet_target() {
                         ContractError::PoolNotOpen |
                         ContractError::PoolExpired |
                         ContractError::InvalidOutcome |
-                        ContractError::BetBelowMinBet |
-                        ContractError::BetAboveMaxBet |
                         ContractError::PoolTotalOverflow |
                         ContractError::UserBetOverflow |
                         ContractError::PoolSizeLimitExceeded |
