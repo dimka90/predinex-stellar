@@ -139,6 +139,13 @@ pub enum DataKey {
     /// Minimum number of participants a pool must have before it can be settled.
     /// Set by the treasury recipient; defaults to `DEFAULT_MIN_SETTLEMENT_PARTICIPANTS`.
     MinSettlementParticipants,
+    /// Per-pool TWAP lookback period in seconds. Missing entries default to
+    /// `DEFAULT_TWAP_PERIOD_SECS`.
+    PoolTwapPeriod(u32),
+    /// Per-pool/outcome rolling TWAP accumulator state.
+    TwapState(u32, u32),
+    /// Bounded per-pool/outcome TWAP checkpoints used to answer lookback reads.
+    TwapSnapshots(u32, u32),
 }
 
 // #189 — TTL bump policy for persistent storage entries.
@@ -201,6 +208,13 @@ const DEFAULT_MAX_POOL_SIZE_STROOPS: i128 = 0;
 const DEFAULT_LARGE_POOL_THRESHOLD_STROOPS: i128 = 0;
 /// Default cooling duration for large pools.
 const DEFAULT_LARGE_POOL_COOLING_PERIOD_SECS: u64 = 0;
+/// Default TWAP lookback period: 1 hour.
+pub const DEFAULT_TWAP_PERIOD_SECS: u64 = 3_600;
+/// Minimum time between TWAP snapshots for a given pool/outcome.
+pub const MIN_UPDATE_INTERVAL: u64 = 60;
+/// Odds are represented in basis points: 10_000 = 100%.
+pub const ODDS_SCALE: i128 = 10_000;
+const MAX_TWAP_SNAPSHOTS: u32 = 64;
 
 /// #156 — Typed contract error model. Replaces string panics for all failure
 /// paths so SDK consumers can match on a stable error code rather than parsing
@@ -733,6 +747,36 @@ pub struct BetCancelledEvent {
 pub struct PoolDurationExtendedEvent {
     pub creator: Address,
     pub new_expiry: u64,
+}
+
+/// Per-pool/outcome TWAP accumulator.
+///
+/// `last_odds` is stored in basis points (`ODDS_SCALE` = 100%). The
+/// accumulator stores `basis_points * seconds`, so dividing a cumulative delta
+/// by elapsed seconds returns average odds in the same basis-point scale.
+#[derive(Clone)]
+#[contracttype]
+pub struct TwapState {
+    pub last_odds: i128,
+    pub last_updated_at: u64,
+    pub cumulative_odds_time: i128,
+}
+
+/// TWAP checkpoint for reconstructing bounded lookback windows.
+#[derive(Clone)]
+#[contracttype]
+pub struct TwapSnapshot {
+    pub timestamp: u64,
+    pub odds: i128,
+    pub cumulative_odds_time: i128,
+}
+
+/// Event payload emitted by `update_twap`.
+#[derive(Clone)]
+#[contracttype]
+pub struct TwapUpdatedEvent {
+    pub timestamp: u64,
+    pub odds: Vec<i128>,
 }
 
 #[contract]
@@ -1459,6 +1503,132 @@ impl PredinexContract {
         Ok(total)
     }
 
+    fn current_odds_for_outcome(totals: &Vec<i128>, outcome: u32) -> Result<i128, ContractError> {
+        if outcome >= totals.len() {
+            return Err(ContractError::InvalidOutcome);
+        }
+        if totals.len() == 0 {
+            return Err(ContractError::InvalidOutcome);
+        }
+
+        let total = Self::sum_totals(totals)?;
+        if total <= 0 {
+            return Ok(ODDS_SCALE / totals.len() as i128);
+        }
+
+        Ok((totals.get(outcome).unwrap() * ODDS_SCALE) / total)
+    }
+
+    fn current_odds(env: &Env, pool_id: u32, pool: &Pool) -> Result<Vec<i128>, ContractError> {
+        let totals = Self::read_outcome_totals(env, pool_id, pool);
+        let mut odds = Vec::new(env);
+        for outcome in 0..totals.len() {
+            odds.push_back(Self::current_odds_for_outcome(&totals, outcome)?);
+        }
+        Ok(odds)
+    }
+
+    fn extend_twap_ttl(env: &Env, pool_id: u32, outcome: u32) {
+        env.storage().persistent().extend_ttl(
+            &DataKey::TwapState(pool_id, outcome),
+            POOL_BUMP_THRESHOLD,
+            POOL_BUMP_TARGET,
+        );
+        env.storage().persistent().extend_ttl(
+            &DataKey::TwapSnapshots(pool_id, outcome),
+            POOL_BUMP_THRESHOLD,
+            POOL_BUMP_TARGET,
+        );
+    }
+
+    fn write_twap_checkpoint(env: &Env, pool_id: u32, outcome: u32, state: &TwapState) {
+        let key = DataKey::TwapSnapshots(pool_id, outcome);
+        let mut snapshots = env
+            .storage()
+            .persistent()
+            .get::<_, Vec<TwapSnapshot>>(&key)
+            .unwrap_or_else(|| Vec::new(env));
+        snapshots.push_back(TwapSnapshot {
+            timestamp: state.last_updated_at,
+            odds: state.last_odds,
+            cumulative_odds_time: state.cumulative_odds_time,
+        });
+        while snapshots.len() > MAX_TWAP_SNAPSHOTS {
+            snapshots.remove(0);
+        }
+        env.storage().persistent().set(&key, &snapshots);
+    }
+
+    fn initialize_twap_for_pool(
+        env: &Env,
+        pool_id: u32,
+        outcome_count: u32,
+        twap_period_secs: u64,
+        timestamp: u64,
+    ) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::PoolTwapPeriod(pool_id), &twap_period_secs);
+        env.storage().persistent().extend_ttl(
+            &DataKey::PoolTwapPeriod(pool_id),
+            POOL_BUMP_THRESHOLD,
+            POOL_BUMP_TARGET,
+        );
+
+        let initial_odds = if outcome_count == 0 {
+            0
+        } else {
+            ODDS_SCALE / outcome_count as i128
+        };
+        for outcome in 0..outcome_count {
+            let state = TwapState {
+                last_odds: initial_odds,
+                last_updated_at: timestamp,
+                cumulative_odds_time: 0,
+            };
+            env.storage()
+                .persistent()
+                .set(&DataKey::TwapState(pool_id, outcome), &state);
+            Self::write_twap_checkpoint(env, pool_id, outcome, &state);
+            Self::extend_twap_ttl(env, pool_id, outcome);
+        }
+    }
+
+    fn cumulative_at(snapshots: &Vec<TwapSnapshot>, target: u64) -> Option<i128> {
+        if snapshots.len() == 0 {
+            return None;
+        }
+
+        let mut previous = snapshots.get(0).unwrap();
+        if target < previous.timestamp {
+            return None;
+        }
+        if target == previous.timestamp {
+            return Some(previous.cumulative_odds_time);
+        }
+
+        for i in 1..snapshots.len() {
+            let next = snapshots.get(i).unwrap();
+            if target == next.timestamp {
+                return Some(next.cumulative_odds_time);
+            }
+            if target < next.timestamp {
+                let elapsed = target.saturating_sub(previous.timestamp) as i128;
+                return previous
+                    .odds
+                    .checked_mul(elapsed)
+                    .and_then(|weighted| previous.cumulative_odds_time.checked_add(weighted));
+            }
+            previous = next;
+        }
+
+        let elapsed = target.saturating_sub(previous.timestamp) as i128;
+        previous
+            .odds
+            .checked_mul(elapsed)
+            .and_then(|weighted| previous.cumulative_odds_time.checked_add(weighted))
+    }
+
     fn create_pool_internal(
         env: &Env,
         creator: Address,
@@ -1469,6 +1639,7 @@ impl PredinexContract {
         metadata_uri: Option<String>,
         created_at: u64,
         status: PoolStatus,
+        twap_period_secs: u64,
     ) -> Result<u32, ContractError> {
         Self::validate_non_empty_string(
             &title,
@@ -1496,6 +1667,9 @@ impl PredinexContract {
         }
         if duration == 0 || duration > MAX_POOL_DURATION_SECS {
             return Err(ContractError::DurationTooLong);
+        }
+        if twap_period_secs == 0 {
+            return Err(ContractError::DurationTooShort);
         }
 
         let creation_fee: i128 = env
@@ -1565,6 +1739,7 @@ impl PredinexContract {
         env.storage()
             .persistent()
             .set(&DataKey::PoolOutcomeTotals(pool_id), &totals);
+        Self::initialize_twap_for_pool(env, pool_id, outcomes.len(), twap_period_secs, created_at);
         if let Some(ref uri) = metadata_uri {
             env.storage()
                 .persistent()
@@ -1635,6 +1810,36 @@ impl PredinexContract {
             None,
             env.ledger().timestamp(),
             PoolStatus::Open,
+            DEFAULT_TWAP_PERIOD_SECS,
+        )
+    }
+
+    pub fn create_pool_with_twap_period(
+        env: Env,
+        creator: Address,
+        title: String,
+        description: String,
+        outcome_a: String,
+        outcome_b: String,
+        duration: u64,
+        twap_period_secs: u64,
+    ) -> Result<u32, ContractError> {
+        creator.require_auth();
+
+        let mut outcomes = Vec::new(&env);
+        outcomes.push_back(outcome_a);
+        outcomes.push_back(outcome_b);
+        Self::create_pool_internal(
+            &env,
+            creator,
+            title,
+            description,
+            outcomes,
+            duration,
+            None,
+            env.ledger().timestamp(),
+            PoolStatus::Open,
+            twap_period_secs,
         )
     }
 
@@ -1658,6 +1863,32 @@ impl PredinexContract {
             metadata_uri,
             env.ledger().timestamp(),
             PoolStatus::Open,
+            DEFAULT_TWAP_PERIOD_SECS,
+        )
+    }
+
+    pub fn create_multi_pool_with_twap(
+        env: Env,
+        creator: Address,
+        title: String,
+        description: String,
+        outcomes: Vec<String>,
+        duration: u64,
+        metadata_uri: Option<String>,
+        twap_period_secs: u64,
+    ) -> Result<u32, ContractError> {
+        creator.require_auth();
+        Self::create_pool_internal(
+            &env,
+            creator,
+            title,
+            description,
+            outcomes,
+            duration,
+            metadata_uri,
+            env.ledger().timestamp(),
+            PoolStatus::Open,
+            twap_period_secs,
         )
     }
 
@@ -1696,6 +1927,7 @@ impl PredinexContract {
             None,
             open_at,
             PoolStatus::Scheduled(open_at),
+            DEFAULT_TWAP_PERIOD_SECS,
         )?;
         let scheduled = ScheduledPool {
             pool_id,
@@ -2159,6 +2391,165 @@ impl PredinexContract {
             );
         }
         Ok(())
+    }
+
+    /// Record the current outcome odds for TWAP reads.
+    ///
+    /// Callable by anyone. Odds are stored in basis points (`ODDS_SCALE` =
+    /// 100%) and snapshots are accepted at most once per `MIN_UPDATE_INTERVAL`
+    /// for each pool/outcome.
+    pub fn update_twap(env: Env, pool_id: u32) -> Result<(), ContractError> {
+        let pool = env
+            .storage()
+            .persistent()
+            .get::<_, Pool>(&DataKey::Pool(pool_id))
+            .ok_or(ContractError::PoolNotFound)?;
+        let outcomes = Self::read_outcomes(&env, pool_id, &pool);
+        let odds = Self::current_odds(&env, pool_id, &pool)?;
+        let now = env.ledger().timestamp();
+
+        for outcome in 0..outcomes.len() {
+            let state = env
+                .storage()
+                .persistent()
+                .get::<_, TwapState>(&DataKey::TwapState(pool_id, outcome))
+                .unwrap_or(TwapState {
+                    last_odds: ODDS_SCALE / outcomes.len() as i128,
+                    last_updated_at: pool.created_at,
+                    cumulative_odds_time: 0,
+                });
+            if now.saturating_sub(state.last_updated_at) < MIN_UPDATE_INTERVAL {
+                return Err(ContractError::RateLimitExceeded);
+            }
+        }
+
+        for outcome in 0..outcomes.len() {
+            let mut state = env
+                .storage()
+                .persistent()
+                .get::<_, TwapState>(&DataKey::TwapState(pool_id, outcome))
+                .unwrap_or(TwapState {
+                    last_odds: ODDS_SCALE / outcomes.len() as i128,
+                    last_updated_at: pool.created_at,
+                    cumulative_odds_time: 0,
+                });
+            let elapsed = now.saturating_sub(state.last_updated_at) as i128;
+            let weighted = state
+                .last_odds
+                .checked_mul(elapsed)
+                .ok_or(ContractError::PoolTotalOverflow)?;
+            state.cumulative_odds_time = state
+                .cumulative_odds_time
+                .checked_add(weighted)
+                .ok_or(ContractError::PoolTotalOverflow)?;
+            state.last_updated_at = now;
+            state.last_odds = odds.get(outcome).unwrap();
+
+            env.storage()
+                .persistent()
+                .set(&DataKey::TwapState(pool_id, outcome), &state);
+            Self::write_twap_checkpoint(&env, pool_id, outcome, &state);
+            Self::extend_twap_ttl(&env, pool_id, outcome);
+        }
+
+        env.storage().persistent().extend_ttl(
+            &DataKey::Pool(pool_id),
+            POOL_BUMP_THRESHOLD,
+            POOL_BUMP_TARGET,
+        );
+        env.events().publish(
+            (
+                Symbol::new(&env, "twap_updated"),
+                event_version(&env),
+                pool_id,
+            ),
+            TwapUpdatedEvent {
+                timestamp: now,
+                odds,
+            },
+        );
+        Ok(())
+    }
+
+    /// Return average odds for `outcome` over `period_secs`.
+    ///
+    /// Passing `0` uses the pool's configured TWAP period, defaulting to one
+    /// hour. The return value uses basis points (`10_000 = 100%`). When the
+    /// requested window starts before available history, current odds are
+    /// returned as a conservative fallback.
+    pub fn get_twap(
+        env: Env,
+        pool_id: u32,
+        outcome: u32,
+        period_secs: u64,
+    ) -> Result<i128, ContractError> {
+        let pool = env
+            .storage()
+            .persistent()
+            .get::<_, Pool>(&DataKey::Pool(pool_id))
+            .ok_or(ContractError::PoolNotFound)?;
+        let totals = Self::read_outcome_totals(&env, pool_id, &pool);
+        let current_odds = Self::current_odds_for_outcome(&totals, outcome)?;
+        let effective_period = if period_secs == 0 {
+            env.storage()
+                .persistent()
+                .get::<_, u64>(&DataKey::PoolTwapPeriod(pool_id))
+                .unwrap_or(DEFAULT_TWAP_PERIOD_SECS)
+        } else {
+            period_secs
+        };
+        if effective_period == 0 {
+            return Err(ContractError::DurationTooShort);
+        }
+
+        let now = env.ledger().timestamp();
+        let pool_age = now.saturating_sub(pool.created_at);
+        if effective_period >= pool_age || pool_age == 0 {
+            return Ok(current_odds);
+        }
+
+        let state = match env
+            .storage()
+            .persistent()
+            .get::<_, TwapState>(&DataKey::TwapState(pool_id, outcome))
+        {
+            Some(state) => state,
+            None => return Ok(current_odds),
+        };
+        let snapshots = match env
+            .storage()
+            .persistent()
+            .get::<_, Vec<TwapSnapshot>>(&DataKey::TwapSnapshots(pool_id, outcome))
+        {
+            Some(snapshots) => snapshots,
+            None => return Ok(current_odds),
+        };
+        let window_start = now.saturating_sub(effective_period);
+        let start_cumulative = match Self::cumulative_at(&snapshots, window_start) {
+            Some(value) => value,
+            None => return Ok(current_odds),
+        };
+        let elapsed_since_update = now.saturating_sub(state.last_updated_at) as i128;
+        let current_cumulative = state
+            .last_odds
+            .checked_mul(elapsed_since_update)
+            .and_then(|weighted| state.cumulative_odds_time.checked_add(weighted))
+            .ok_or(ContractError::PoolTotalOverflow)?;
+        let numerator = current_cumulative
+            .checked_sub(start_cumulative)
+            .ok_or(ContractError::PoolTotalOverflow)?;
+        Ok(numerator / effective_period as i128)
+    }
+
+    pub fn get_pool_twap_period(env: Env, pool_id: u32) -> Result<u64, ContractError> {
+        if !env.storage().persistent().has(&DataKey::Pool(pool_id)) {
+            return Err(ContractError::PoolNotFound);
+        }
+        Ok(env
+            .storage()
+            .persistent()
+            .get::<_, u64>(&DataKey::PoolTwapPeriod(pool_id))
+            .unwrap_or(DEFAULT_TWAP_PERIOD_SECS))
     }
 
     /// Cancel part (or all) of a previously placed bet before the pool resolves.
@@ -4265,6 +4656,7 @@ impl PredinexContract {
             metadata_uri,
             env.ledger().timestamp(),
             PoolStatus::Open,
+            DEFAULT_TWAP_PERIOD_SECS,
         )?;
         env.events().publish(
             (

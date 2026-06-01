@@ -4364,3 +4364,157 @@ fn test_claim_expired_removes_bet_record() {
         "bet record must be removed after claim_expired"
     );
 }
+
+// ============================================================================
+// Issue #423: TWAP oracle for pool odds
+// ============================================================================
+
+#[test]
+fn test_twap_period_defaults_to_one_hour() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    assert_eq!(
+        t.client.get_pool_twap_period(&pool_id),
+        DEFAULT_TWAP_PERIOD_SECS
+    );
+}
+
+#[test]
+fn test_twap_period_can_be_configured_at_creation() {
+    let t = setup();
+    let pool_id = t.client.create_pool_with_twap_period(
+        &t.admin,
+        &String::from_str(&t.env, "TWAP pool"),
+        &String::from_str(&t.env, "Description"),
+        &String::from_str(&t.env, "Yes"),
+        &String::from_str(&t.env, "No"),
+        &3_600u64,
+        &900u64,
+    );
+
+    assert_eq!(t.client.get_pool_twap_period(&pool_id), 900);
+}
+
+#[test]
+fn test_update_twap_records_odds_and_emits_event() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &100i128, &None::<Address>);
+    t.env
+        .ledger()
+        .with_mut(|li| li.timestamp = MIN_UPDATE_INTERVAL);
+
+    t.client.update_twap(&pool_id);
+
+    let events = t.env.events().all();
+    let found = (0..events.len()).any(|i| {
+        let event = events.get(i).unwrap();
+        let topic0: soroban_sdk::Symbol =
+            soroban_sdk::FromVal::from_val(&t.env, &event.1.get(0).unwrap());
+        topic0 == soroban_sdk::Symbol::new(&t.env, "twap_updated")
+    });
+    assert!(found, "twap_updated event must be emitted");
+
+    assert_eq!(
+        t.client.get_twap(&pool_id, &0u32, &10_000u64),
+        ODDS_SCALE,
+        "long lookback fallback should report current 100% odds for outcome 0"
+    );
+}
+
+#[test]
+fn test_twap_calculates_across_multiple_updates() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let whale = Address::generate(&t.env);
+    let token_admin = soroban_sdk::token::StellarAssetClient::new(&t.env, &t.token);
+    token_admin.mint(&whale, &1_000i128);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &100i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 60);
+    t.client.update_twap(&pool_id);
+
+    t.client
+        .place_bet(&whale, &pool_id, &1u32, &300i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 120);
+    t.client.update_twap(&pool_id);
+
+    t.env.ledger().with_mut(|li| li.timestamp = 180);
+
+    assert_eq!(
+        t.client.get_twap(&pool_id, &0u32, &120u64),
+        6_250,
+        "window [60, 180] should average 60s at 10000 bps and 60s at 2500 bps"
+    );
+}
+
+#[test]
+fn test_recent_large_bet_is_diluted_in_twap() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let whale = Address::generate(&t.env);
+    let token_admin = soroban_sdk::token::StellarAssetClient::new(&t.env, &t.token);
+    token_admin.mint(&whale, &1_000i128);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &100i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 60);
+    t.client.update_twap(&pool_id);
+
+    t.client
+        .place_bet(&whale, &pool_id, &1u32, &900i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 120);
+    t.client.update_twap(&pool_id);
+    t.env.ledger().with_mut(|li| li.timestamp = 180);
+
+    let current_odds = t.client.get_twap(&pool_id, &0u32, &999_999u64);
+    let twap_odds = t.client.get_twap(&pool_id, &0u32, &120u64);
+
+    assert_eq!(current_odds, 1_000);
+    assert!(
+        twap_odds > current_odds,
+        "TWAP should dilute a recent large bet relative to instantaneous odds"
+    );
+}
+
+#[test]
+fn test_update_twap_rejects_too_frequent_updates() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.env
+        .ledger()
+        .with_mut(|li| li.timestamp = MIN_UPDATE_INTERVAL);
+    t.client.update_twap(&pool_id);
+    t.env
+        .ledger()
+        .with_mut(|li| li.timestamp = MIN_UPDATE_INTERVAL + 1);
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        t.client.update_twap(&pool_id);
+    }));
+    assert!(
+        result.is_err(),
+        "updates inside the minimum interval must fail"
+    );
+}
+
+#[test]
+fn test_twap_period_longer_than_pool_age_returns_current_odds() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+
+    t.client
+        .place_bet(&t.user, &pool_id, &0u32, &100i128, &None::<Address>);
+    t.env.ledger().with_mut(|li| li.timestamp = 60);
+    t.client.update_twap(&pool_id);
+
+    assert_eq!(
+        t.client.get_twap(&pool_id, &0u32, &10_000u64),
+        ODDS_SCALE,
+        "lookback beyond pool age falls back to current odds"
+    );
+}
