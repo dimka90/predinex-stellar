@@ -53,7 +53,6 @@ fn test_create_pool_template_returns_incrementing_id() {
         &make_outcomes(&env),
         &86_400,
         &None,
-        &false,
     );
     let id2 = client.create_pool_template(
         &owner,
@@ -62,7 +61,6 @@ fn test_create_pool_template_returns_incrementing_id() {
         &make_outcomes(&env),
         &604_800,
         &None,
-        &false,
     );
 
     assert_eq!(id1 + 1, id2, "template IDs should be consecutive");
@@ -80,7 +78,6 @@ fn test_create_pool_template_emits_created_event() {
         &make_outcomes(&env),
         &3600,
         &None,
-        &false,
     );
 
     let events = env.events().all();
@@ -112,7 +109,6 @@ fn test_create_pool_from_template_uses_template_defaults() {
         &make_outcomes(&env),
         &7_200,
         &None,
-        &false,
     );
 
     // No overrides — pool should inherit all template fields
@@ -150,7 +146,6 @@ fn test_create_pool_from_template_applies_overrides() {
         &make_outcomes(&env),
         &3_600,
         &None,
-        &false,
     );
 
     let overridden_title = String::from_str(&env, "Overridden Title");
@@ -211,7 +206,6 @@ fn test_get_user_templates_returns_all_owned_templates() {
         &make_outcomes(&env),
         &3600,
         &None,
-        &false,
     );
     let id2 = client.create_pool_template(
         &owner,
@@ -220,7 +214,6 @@ fn test_get_user_templates_returns_all_owned_templates() {
         &make_outcomes(&env),
         &7200,
         &None,
-        &false,
     );
 
     let templates = client.get_user_templates(&owner);
@@ -257,7 +250,6 @@ fn test_get_user_templates_does_not_include_other_users_templates() {
         &make_outcomes(&env),
         &3600,
         &None,
-        &false,
     );
 
     let bob_templates = client.get_user_templates(&bob);
@@ -280,7 +272,6 @@ fn test_delete_template_removes_the_template() {
         &make_outcomes(&env),
         &3600,
         &None,
-        &false,
     );
 
     client.delete_template(&owner, &template_id);
@@ -302,7 +293,6 @@ fn test_delete_template_emits_deleted_event() {
         &make_outcomes(&env),
         &3600,
         &None,
-        &false,
     );
 
     client.delete_template(&owner, &template_id);
@@ -333,7 +323,6 @@ fn test_delete_template_rejects_unauthorized_caller() {
         &make_outcomes(&env),
         &3600,
         &None,
-        &false,
     );
 
     // attacker does not own this template and is not treasury recipient
@@ -372,67 +361,7 @@ fn test_max_templates_per_user_cap_is_enforced() {
             &make_outcomes(&env),
             &3600,
             &None,
-        &false,
         );
     }
     // The 21st call (index 20) must panic with TooManyTemplates
-}
-
-// ---------------------------------------------------------------------------
-// get_public_templates
-// ---------------------------------------------------------------------------
-
-#[test]
-fn test_create_public_template() {
-    let (env, _, client) = setup();
-    let owner = Address::generate(&env);
-
-    let template_id = client.create_pool_template(
-        &owner,
-        &String::from_str(&env, "Public Template"),
-        &String::from_str(&env, "A publicly discoverable template"),
-        &make_outcomes(&env),
-        &3600,
-        &None,
-        &true,
-    );
-
-    let public_templates = client.get_public_templates();
-    assert_eq!(
-        public_templates.len(),
-        1,
-        "there should be exactly one public template"
-    );
-    assert_eq!(
-        public_templates.get(0).unwrap().id,
-        template_id,
-        "the public template should match the created one"
-    );
-    assert!(
-        public_templates.get(0).unwrap().is_public,
-        "returned template should have is_public == true"
-    );
-}
-
-#[test]
-fn test_private_template_not_in_public_list() {
-    let (env, _, client) = setup();
-    let owner = Address::generate(&env);
-
-    client.create_pool_template(
-        &owner,
-        &String::from_str(&env, "Private Template"),
-        &String::from_str(&env, "Not publicly listed"),
-        &make_outcomes(&env),
-        &3600,
-        &None,
-        &false,
-    );
-
-    let public_templates = client.get_public_templates();
-    assert_eq!(
-        public_templates.len(),
-        0,
-        "private template should not appear in get_public_templates"
-    );
 }

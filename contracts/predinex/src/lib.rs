@@ -414,7 +414,6 @@ pub struct PoolTemplate {
     pub outcomes: Vec<String>,
     pub duration: u64,
     pub metadata_uri: Option<String>,
-    pub is_public: bool,
 }
 
 #[derive(Clone)]
@@ -4508,7 +4507,6 @@ impl PredinexContract {
         outcomes: Vec<String>,
         duration: u64,
         metadata_uri: Option<String>,
-        is_public: bool,
     ) -> Result<u32, ContractError> {
         caller.require_auth();
         Self::require_treasury_recipient(&env, &caller)?;
@@ -4549,7 +4547,6 @@ impl PredinexContract {
             outcomes,
             duration,
             metadata_uri,
-            is_public,
         };
         env.storage()
             .persistent()
@@ -4614,7 +4611,6 @@ impl PredinexContract {
             outcomes: template.outcomes,
             duration: template.duration,
             metadata_uri: template.metadata_uri,
-            is_public: template.is_public,
         };
         env.storage()
             .persistent()
@@ -4677,29 +4673,6 @@ impl PredinexContract {
             id += 1;
         }
         templates
-    }
-
-    pub fn get_public_templates(env: Env) -> Vec<PoolTemplate> {
-        let next_id = env
-            .storage()
-            .persistent()
-            .get::<_, u32>(&DataKey::PoolTemplateCounter)
-            .unwrap_or(1);
-        let mut public_templates = Vec::new(&env);
-        let mut id = 1u32;
-        while id < next_id {
-            if let Some(t) = env
-                .storage()
-                .persistent()
-                .get::<_, PoolTemplate>(&DataKey::PoolTemplate(id))
-            {
-                if t.is_public {
-                    public_templates.push_back(t);
-                }
-            }
-            id += 1;
-        }
-        public_templates
     }
 
     pub fn create_pool_from_template(
