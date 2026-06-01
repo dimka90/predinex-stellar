@@ -164,7 +164,7 @@ Significant architectural decisions (new caching strategies, contract interface 
 
 ### Contract interface changes
 
-Any change that touches the contract interface must follow the process in [docs/CONTRACT_VERSIONING.md](./web/docs/CONTRACT_VERSIONING.md). Breaking changes require an explicit major version bump and a migration note before the PR can be merged.
+Any change that touches the contract state or upgrade flow must follow the process in [docs/CONTRACT_UPGRADE_PROCEDURE.md](./docs/CONTRACT_UPGRADE_PROCEDURE.md). Breaking changes require an explicit version bump, a migration plan, and testnet verification before the PR can be merged.
 
 ---
 

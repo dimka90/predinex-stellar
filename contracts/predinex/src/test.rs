@@ -4364,3 +4364,276 @@ fn test_claim_expired_removes_bet_record() {
         "bet record must be removed after claim_expired"
     );
 }
+
+/// F6: withdraw_liquidity panics when shares exceed position.
+#[test]
+#[should_panic(expected = "Insufficient shares")]
+fn f6_withdraw_more_than_owned_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
+
+    let contract_id = env.register(PredinexContract, ());
+    let client = PredinexContractClient::new(&env, &contract_id);
+    client.initialize(&token_id.address(), &token_admin);
+
+    let creator = Address::generate(&env);
+    let lp = Address::generate(&env);
+    token_admin_client.mint(&lp, &500i128);
+
+    let pool_id = client.create_pool(
+        &creator,
+        &String::from_str(&env, "Pool"),
+        &String::from_str(&env, "Desc"),
+        &String::from_str(&env, "Yes"),
+        &String::from_str(&env, "No"),
+        &3600u64,
+    );
+
+    let shares = client.provide_liquidity(&lp, &pool_id, &500i128);
+    client.withdraw_liquidity(&lp, &pool_id, &(shares + 1));
+}
+
+// ============================================================================
+// Issue #419: Pool dispute resolution mechanism
+// ============================================================================
+
+/// G1: dispute_pool within settlement window succeeds.
+#[test]
+fn g1_dispute_within_window_succeeds() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let disputer = Address::generate(&t.env);
+    token::StellarAssetClient::new(&t.env, &t.token)
+        .mint(&disputer, &100i128);
+
+    t.client.place_bet(&disputer, &pool_id, &1u32, &100i128);
+    expire_pool(&t.env);
+    t.client.settle_pool(&t.admin, &pool_id, &0u32);
+
+    t.client.dispute_pool(
+        &disputer,
+        &pool_id,
+        &String::from_str(&t.env, "Unfair result"),
+    );
+
+    let dispute = t.client.get_pool_dispute(&pool_id).expect("dispute must exist");
+    assert_eq!(dispute.disputer, disputer);
+    assert!(!dispute.resolved);
+    assert!(dispute.upheld.is_none());
+}
+
+/// G2: dispute_pool after window expiry is rejected.
+#[test]
+#[should_panic(expected = "Dispute window expired")]
+fn g2_dispute_after_window_rejected() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let disputer = Address::generate(&t.env);
+    token::StellarAssetClient::new(&t.env, &t.token)
+        .mint(&disputer, &100i128);
+
+    t.client.place_bet(&disputer, &pool_id, &1u32, &100i128);
+    expire_pool(&t.env);
+    t.client.settle_pool(&t.admin, &pool_id, &0u32);
+
+    // Advance past 7-day dispute window
+    t.env.ledger().with_mut(|l| l.timestamp += 7 * 24 * 3600 + 1);
+
+    t.client.dispute_pool(
+        &disputer,
+        &pool_id,
+        &String::from_str(&t.env, "Too late"),
+    );
+}
+
+/// G3: resolve_dispute upheld = true → claiming proceeds normally.
+#[test]
+fn g3_resolve_upheld_allows_normal_claim() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let disputer = Address::generate(&t.env);
+    let winner = Address::generate(&t.env);
+    let tok = token::StellarAssetClient::new(&t.env, &t.token);
+    tok.mint(&disputer, &100i128);
+    tok.mint(&winner, &200i128);
+
+    t.client.place_bet(&winner, &pool_id, &0u32, &200i128);
+    t.client.place_bet(&disputer, &pool_id, &1u32, &100i128);
+    expire_pool(&t.env);
+    t.client.settle_pool(&t.admin, &pool_id, &0u32);
+
+    t.client.dispute_pool(
+        &disputer,
+        &pool_id,
+        &String::from_str(&t.env, "Dispute"),
+    );
+
+    // Uphold original outcome
+    t.client.resolve_dispute(&t.admin, &pool_id, &true);
+
+    let dispute = t.client.get_pool_dispute(&pool_id).unwrap();
+    assert!(dispute.resolved);
+    assert_eq!(dispute.upheld, Some(true));
+
+    // Winner can now claim
+    let winnings = t.client.claim_winnings(&winner, &pool_id);
+    assert!(winnings > 0);
+}
+
+/// G4: resolve_dispute upheld = false voids pool → all bettors get refunds.
+#[test]
+fn g4_resolve_void_issues_refunds() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let user_a = Address::generate(&t.env);
+    let user_b = Address::generate(&t.env);
+    let tok = token::StellarAssetClient::new(&t.env, &t.token);
+    tok.mint(&user_a, &300i128);
+    tok.mint(&user_b, &200i128);
+
+    t.client.place_bet(&user_a, &pool_id, &0u32, &300i128);
+    t.client.place_bet(&user_b, &pool_id, &1u32, &200i128);
+    expire_pool(&t.env);
+    t.client.settle_pool(&t.admin, &pool_id, &0u32);
+
+    t.client.dispute_pool(
+        &user_b,
+        &pool_id,
+        &String::from_str(&t.env, "Oracle error"),
+    );
+    t.client.resolve_dispute(&t.admin, &pool_id, &false);
+
+    // Both get full refunds
+    let refund_a = t.client.claim_winnings(&user_a, &pool_id);
+    let refund_b = t.client.claim_winnings(&user_b, &pool_id);
+    assert_eq!(refund_a, 300i128);
+    assert_eq!(refund_b, 200i128);
+}
+
+/// G5: Claiming while dispute is unresolved panics.
+#[test]
+#[should_panic(expected = "Pool is under dispute")]
+fn g5_claim_during_active_dispute_rejected() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let disputer = Address::generate(&t.env);
+    let winner = Address::generate(&t.env);
+    let tok = token::StellarAssetClient::new(&t.env, &t.token);
+    tok.mint(&disputer, &100i128);
+    tok.mint(&winner, &200i128);
+
+    t.client.place_bet(&winner, &pool_id, &0u32, &200i128);
+    t.client.place_bet(&disputer, &pool_id, &1u32, &100i128);
+    expire_pool(&t.env);
+    t.client.settle_pool(&t.admin, &pool_id, &0u32);
+
+    t.client.dispute_pool(
+        &disputer,
+        &pool_id,
+        &String::from_str(&t.env, "Contested"),
+    );
+
+    // Must panic: dispute not resolved yet
+    t.client.claim_winnings(&winner, &pool_id);
+}
+
+/// G6: Unauthorized dispute resolution is rejected.
+#[test]
+#[should_panic(expected = "Unauthorized")]
+fn g6_unauthorized_resolve_rejected() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    let disputer = Address::generate(&t.env);
+    let intruder = Address::generate(&t.env);
+    let tok = token::StellarAssetClient::new(&t.env, &t.token);
+    tok.mint(&disputer, &100i128);
+
+    t.client.place_bet(&disputer, &pool_id, &1u32, &100i128);
+    expire_pool(&t.env);
+    t.client.settle_pool(&t.admin, &pool_id, &0u32);
+
+    t.client.dispute_pool(
+        &disputer,
+        &pool_id,
+        &String::from_str(&t.env, "Contested"),
+    );
+
+    t.client.resolve_dispute(&intruder, &pool_id, &true);
+}
+
+/// G7: get_pool_dispute returns None when no dispute exists.
+#[test]
+fn g7_get_pool_dispute_returns_none_when_no_dispute() {
+    let t = setup();
+    let pool_id = make_pool(&t);
+    assert!(t.client.get_pool_dispute(&pool_id).is_none());
+}
+
+// ============================================================================
+// Issue #447: Security — double-fee fix (proportional treasury fee per claim)
+// ============================================================================
+
+/// H1: Two winners both claim; treasury receives exactly one pool fee in total.
+///
+/// Before the fix, each claim added the full 2% pool fee to treasury, causing
+/// over-crediting when multiple winners existed. After the fix, each winner pays
+/// only their proportional share of the fee.
+#[test]
+fn h1_double_fee_fix_treasury_correct_with_multiple_winners() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_admin_client = token::StellarAssetClient::new(&env, &token_id.address());
+
+    let contract_id = env.register(PredinexContract, ());
+    let client = PredinexContractClient::new(&env, &contract_id);
+    client.initialize(&token_id.address(), &token_admin);
+
+    let creator = Address::generate(&env);
+    let winner1 = Address::generate(&env);
+    let winner2 = Address::generate(&env);
+    let loser = Address::generate(&env);
+
+    token_admin_client.mint(&winner1, &300i128);
+    token_admin_client.mint(&winner2, &100i128);
+    token_admin_client.mint(&loser, &200i128);
+
+    let pool_id = client.create_pool(
+        &creator,
+        &String::from_str(&env, "Pool"),
+        &String::from_str(&env, "Desc"),
+        &String::from_str(&env, "Yes"),
+        &String::from_str(&env, "No"),
+        &3600u64,
+    );
+
+    client.place_bet(&winner1, &pool_id, &0, &300); // 300 on A
+    client.place_bet(&winner2, &pool_id, &0, &100); // 100 on A
+    client.place_bet(&loser, &pool_id, &1, &200);   // 200 on B, loses
+
+    env.ledger().with_mut(|l| l.timestamp = 3601);
+    client.settle_pool(&creator, &pool_id, &0);
+
+    let w1 = client.claim_winnings(&winner1, &pool_id);
+    let w2 = client.claim_winnings(&winner2, &pool_id);
+
+    // Total pool = 600. Fee 2% = 12. Net = 588.
+    // Winner total = 400. w1 = 300*588/400 = 441. w2 = 100*588/400 = 147.
+    assert_eq!(w1, 441i128);
+    assert_eq!(w2, 147i128);
+    // Total paid = 588 = net pool ✓
+
+    // Treasury must hold exactly the fee (user-proportional fee sums to total_fee)
+    let treasury = client.get_treasury_balance();
+    // w1 fee = 300*12/400 = 9. w2 fee = 100*12/400 = 3. Total = 12.
+    assert_eq!(treasury, 12i128, "treasury must equal exactly 2% of total pool");
+}
+
+}
+

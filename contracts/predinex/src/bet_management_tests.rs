@@ -73,8 +73,7 @@ fn last_bet_cancelled(env: &Env) -> (u32, Address, BetCancelledEvent) {
         if topic0 == Symbol::new(env, "bet_cancelled") {
             let pool_id: u32 = soroban_sdk::FromVal::from_val(env, &event.1.get(2).unwrap());
             let user: Address = soroban_sdk::FromVal::from_val(env, &event.1.get(3).unwrap());
-            let payload: BetCancelledEvent =
-                soroban_sdk::FromVal::from_val(env, &event.2);
+            let payload: BetCancelledEvent = soroban_sdk::FromVal::from_val(env, &event.2);
             return (pool_id, user, payload);
         }
     }
@@ -103,7 +102,10 @@ fn c1_partial_cancellation_updates_totals_and_refunds() {
     assert_eq!(refund, 200, "cancel_bet returns the refunded amount");
 
     let pool = t.client.get_pool(&pool_id).expect("pool must exist");
-    assert_eq!(pool.total_a, 400, "outcome total reduced by cancelled amount");
+    assert_eq!(
+        pool.total_a, 400,
+        "outcome total reduced by cancelled amount"
+    );
     assert_eq!(pool.total_b, 0);
     assert_eq!(
         pool.participant_count, 1,
@@ -144,15 +146,14 @@ fn c2_full_cancellation_keeps_participant_count() {
         "participant_count is retained even on full cancellation"
     );
 
-    let bet = t.client.get_user_bet(&pool_id, &user).expect("record remains");
+    let bet = t
+        .client
+        .get_user_bet(&pool_id, &user)
+        .expect("record remains");
     assert_eq!(bet.amount_b, 0);
     assert_eq!(bet.total_bet, 0);
 
-    assert_eq!(
-        token_client.balance(&user),
-        1_000,
-        "entire stake refunded"
-    );
+    assert_eq!(token_client.balance(&user), 1_000, "entire stake refunded");
 }
 
 /// C3: Cancelling only affects the targeted outcome when the user bet on both.
@@ -402,7 +403,11 @@ fn e1_creator_extends_duration() {
     let original = t.client.get_pool(&pool_id).unwrap().expiry; // 100 + 3600 = 3700
     let new_expiry = t.client.extend_pool_duration(&creator, &pool_id, &1_800u64);
 
-    assert_eq!(new_expiry, original + 1_800, "expiry pushed out by extension");
+    assert_eq!(
+        new_expiry,
+        original + 1_800,
+        "expiry pushed out by extension"
+    );
     assert_eq!(
         t.client.get_pool(&pool_id).unwrap().expiry,
         original + 1_800,
@@ -418,7 +423,8 @@ fn e2_unauthorized_caller_rejected() {
 
     let stranger = Address::generate(&t.env);
     assert_eq!(
-        t.client.try_extend_pool_duration(&stranger, &pool_id, &600u64),
+        t.client
+            .try_extend_pool_duration(&stranger, &pool_id, &600u64),
         Err(Ok(ContractError::Unauthorized))
     );
 }
@@ -431,7 +437,8 @@ fn e3_expired_pool_rejected() {
 
     t.env.ledger().with_mut(|li| li.timestamp = 7_200);
     assert_eq!(
-        t.client.try_extend_pool_duration(&creator, &pool_id, &600u64),
+        t.client
+            .try_extend_pool_duration(&creator, &pool_id, &600u64),
         Err(Ok(ContractError::PoolExpired))
     );
 }
@@ -493,7 +500,8 @@ fn e7_frozen_pool_rejected() {
     t.client.freeze_pool(&creator, &pool_id);
 
     assert_eq!(
-        t.client.try_extend_pool_duration(&creator, &pool_id, &600u64),
+        t.client
+            .try_extend_pool_duration(&creator, &pool_id, &600u64),
         Err(Ok(ContractError::PoolNotOpen))
     );
 }
@@ -519,7 +527,8 @@ fn e7b_disputed_pool_rejected() {
     t.client.dispute_pool(&creator, &pool_id);
 
     assert_eq!(
-        t.client.try_extend_pool_duration(&creator, &pool_id, &600u64),
+        t.client
+            .try_extend_pool_duration(&creator, &pool_id, &600u64),
         Err(Ok(ContractError::PoolNotOpen))
     );
 }
@@ -540,8 +549,7 @@ fn e8_duration_extended_event_payload() {
     assert_eq!(topic0, Symbol::new(&t.env, "pool_duration_extended"));
     assert_eq!(topic_pool, pool_id);
 
-    let payload: PoolDurationExtendedEvent =
-        soroban_sdk::FromVal::from_val(&t.env, &last.2);
+    let payload: PoolDurationExtendedEvent = soroban_sdk::FromVal::from_val(&t.env, &last.2);
     assert_eq!(payload.creator, creator);
     assert_eq!(payload.new_expiry, new_expiry);
 }

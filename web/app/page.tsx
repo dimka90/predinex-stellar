@@ -5,7 +5,6 @@ import Link from "next/link";
 import MarketCardHeader from "../components/ui/MarketCardHeader";
 
 export default function Home() {
-  const unusedVar = "I am unused";
   return (
     <main className="min-h-screen bg-background text-foreground selection:bg-primary/20 animate-in fade-in duration-700">
       <Navbar />

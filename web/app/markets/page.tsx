@@ -11,6 +11,7 @@ import { marketFiltersToParams, parseMarketFiltersFromParams } from "../lib/mark
 import type { MarketFilters } from "../lib/market-types";
 import { useMarketDiscovery } from "../lib/hooks/useMarketDiscovery";
 import RouteErrorBoundary from "../../components/RouteErrorBoundary";
+import CompareBadge from "../components/CompareBadge";
 
 function MarketsContent() {
   const router = useRouter();
@@ -143,6 +144,8 @@ function MarketsContent() {
           />
         )}
       </div>
+
+      <CompareBadge />
     </main>
   );
 }
