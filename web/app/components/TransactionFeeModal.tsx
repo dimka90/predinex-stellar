@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
+import { useId, useRef } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { formatTokenAmount } from '../lib/formatting';
+import { useFocusTrap } from '../lib/hooks/useFocusTrap';
+import { useEscapeDismiss } from '../lib/hooks/useEscapeDismiss';
 
 interface TransactionFeeModalProps {
   isOpen: boolean;
@@ -21,15 +23,30 @@ export function TransactionFeeModal({
   onCancel,
   isConfirming = false,
 }: TransactionFeeModalProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap({ active: isOpen, containerRef });
+  useEscapeDismiss({
+    active: isOpen && !isConfirming,
+    onDismiss: onCancel,
+  });
+
   if (!isOpen) return null;
 
   const feeLabel = formatTokenAmount(Number(feeStroops));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="bg-background border border-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-background border border-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200 outline-none"
+      >
         <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">Confirm Transaction</h2>
+          <h2 id={titleId} className="text-xl font-bold mb-4">Confirm Transaction</h2>
           <p className="text-muted-foreground mb-6">
             You are about to execute: <strong className="text-foreground">{actionName}</strong>
           </p>
