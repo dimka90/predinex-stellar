@@ -106,10 +106,9 @@ function resolveContractConfig(network: SupportedNetwork): ContractConfig {
     };
   }
 
-  const analyticsKey = network === 'mainnet' ? 'MAINNET' : 'TESTNET';
-  const contractIdFromAnalytics = (ANALYTICS_NETWORK_CONFIG as Record<string, { CONTRACT_ADDRESS?: string }>)[
-    analyticsKey
-  ]?.CONTRACT_ADDRESS;
+  type AnalyticsNetworkKey = keyof typeof ANALYTICS_NETWORK_CONFIG;
+  const analyticsKey: AnalyticsNetworkKey = network === 'mainnet' ? 'MAINNET' : 'TESTNET';
+  const contractIdFromAnalytics = ANALYTICS_NETWORK_CONFIG[analyticsKey]?.CONTRACT_ADDRESS;
 
   if (!contractIdFromAnalytics || typeof contractIdFromAnalytics !== 'string') {
     throw new Error(

@@ -12,6 +12,7 @@
 import { STACKS_MAINNET, STACKS_TESTNET, StacksNetwork } from "@stacks/network";
 import { fetchCallReadOnlyFunction, cvToValue, uintCV, principalCV, ClarityValue } from "@stacks/transactions";
 import { getRuntimeConfig } from "./runtime-config";
+import { getPoolCountFromSoroban, getPoolsBatchFromSoroban } from "./soroban-read-api";
 
 function getStacksNetwork(): StacksNetwork {
     const cfg = getRuntimeConfig();
@@ -103,12 +104,13 @@ export async function getPool(poolId: number): Promise<Pool | null> {
 }
 
 export async function getMarkets(filter: 'active' | 'settled' | 'all' = 'all'): Promise<Pool[]> {
-    const count = await getPoolCount();
+    const count = await getPoolCountFromSoroban();
+    if (count <= 1) return [];
+
+    const rawPools = await getPoolsBatchFromSoroban(1, count);
     const pools: Pool[] = [];
 
-    // pool IDs start from 0
-    for (let i = 0; i < count; i++) {
-        const pool = await getPool(i);
+    for (const pool of rawPools) {
         if (pool) {
             if (filter === 'active' && pool.settled) continue;
             if (filter === 'settled' && !pool.settled) continue;
