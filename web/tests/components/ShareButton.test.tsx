@@ -216,4 +216,54 @@ describe('ShareButton', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong')
     );
   });
+
+  // --- QR code -------------------------------------------------------------
+
+  it('renders the QR code button', () => {
+    spyClipboardSuccess();
+    teardownNativeShare();
+    render(<ShareButton url="https://example.com/markets/1" />);
+    expect(screen.getByRole('button', { name: /show qr code/i })).toBeInTheDocument();
+  });
+
+  it('opens the QR code popover when the QR button is clicked', async () => {
+    spyClipboardSuccess();
+    teardownNativeShare();
+    const user = userEvent.setup();
+
+    render(<ShareButton url="https://example.com/markets/99" />);
+    await user.click(screen.getByRole('button', { name: /show qr code/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /qr code/i });
+    expect(dialog).toBeInTheDocument();
+
+    // The QR image should point at the qrserver.com API with the encoded URL
+    const img = screen.getByRole('img', { name: /qr code for/i });
+    expect(img).toHaveAttribute(
+      'src',
+      expect.stringContaining('https://api.qrserver.com/v1/create-qr-code/')
+    );
+    expect(img).toHaveAttribute(
+      'src',
+      expect.stringContaining(encodeURIComponent('https://example.com/markets/99'))
+    );
+  });
+
+  it('closes the QR code popover when the close button is clicked', async () => {
+    spyClipboardSuccess();
+    teardownNativeShare();
+    const user = userEvent.setup();
+
+    render(<ShareButton url="https://example.com/markets/1" />);
+
+    // Open
+    await user.click(screen.getByRole('button', { name: /show qr code/i }));
+    expect(screen.getByRole('dialog', { name: /qr code/i })).toBeInTheDocument();
+
+    // Close
+    await user.click(screen.getByRole('button', { name: /close qr code popover/i }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /qr code/i })).not.toBeInTheDocument()
+    );
+  });
 });
