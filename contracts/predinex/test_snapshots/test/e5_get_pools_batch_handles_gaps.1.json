@@ -260,6 +260,17 @@
                     },
                     {
                       "key": {
+                        "symbol": "cumulative_volume"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 0
+                        }
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "description"
                       },
                       "val": {
@@ -414,6 +425,17 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "cumulative_volume"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 0
+                        }
                       }
                     },
                     {

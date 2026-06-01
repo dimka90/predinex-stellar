@@ -223,8 +223,9 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
 
             {/* Bet Amount Input */}
             <div>
-                <label className="block text-sm font-medium mb-2">Bet Amount (XLM)</label>
+                <label htmlFor="bet-amount" className="block text-sm font-medium mb-2">Bet Amount (XLM)</label>
                 <input
+                    id="bet-amount"
                     type="number"
                     step="0.1"
                     min={hasMinBet ? String(minBetStx) : undefined}
@@ -235,8 +236,9 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
                     onChange={(e) => setBetAmount(e.target.value)}
                     disabled={isBetting || (walletBalance !== null && walletBalance < minBetStx) || isMismatch}
                     aria-label="Enter bet amount in XLM"
+                    aria-describedby="bet-limits"
                 />
-                <p className="text-xs text-muted-foreground mt-2">
+                <p id="bet-limits" className="text-xs text-muted-foreground mt-2">
                     Bet limits:{' '}
                     {hasMinBet ? `Min ${minBetStx} XLM` : 'No minimum'}
                     {hasMaxBet && maxBetStx !== null ? `, Max ${maxBetStx} XLM` : ', No maximum'}
@@ -244,20 +246,22 @@ export default function BettingSection({ pool, poolId, onBetSuccess }: BettingSe
             </div>
 
             {/* Bet Buttons */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4" role="group" aria-label="Place your bet">
                 <button
                     onClick={() => placeBet(0)}
                     disabled={isBetting || (walletBalance !== null && walletBalance < minBetStx) || isMismatch}
                     className="py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                    aria-label={`Bet on ${pool.outcomeA}`}
                 >
-                    {isBetting ? <Loader2 className="w-5 h-5 animate-spin" /> : isMismatch ? 'Wrong Network' : `Bet on ${pool.outcomeA}`}
+                    {isBetting ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : isMismatch ? 'Wrong Network' : `Bet on ${pool.outcomeA}`}
                 </button>
                 <button
                     onClick={() => placeBet(1)}
                     disabled={isBetting || (walletBalance !== null && walletBalance < minBetStx) || isMismatch}
                     className="py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                    aria-label={`Bet on ${pool.outcomeB}`}
                 >
-                    {isBetting ? <Loader2 className="w-5 h-5 animate-spin" /> : isMismatch ? 'Wrong Network' : `Bet on ${pool.outcomeB}`}
+                    {isBetting ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : isMismatch ? 'Wrong Network' : `Bet on ${pool.outcomeB}`}
                 </button>
             </div>
         </div>

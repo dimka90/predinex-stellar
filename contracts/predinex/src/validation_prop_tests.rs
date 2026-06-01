@@ -103,7 +103,11 @@ fn v1_test_title_validation() {
             &outcome_b,
             &3600,
         );
-        assert!(result.is_ok(), "Valid title should be accepted: {:?}", title);
+        assert!(
+            result.is_ok(),
+            "Valid title should be accepted: {:?}",
+            title
+        );
     }
 
     // 2. Title too long
@@ -439,7 +443,10 @@ fn v5_test_duration_validation() {
 fn v6_test_metadata_uri_validation() {
     let t = setup_test();
 
-    let outcomes = Vec::from_array(&t.env, [String::from_str(&t.env, "A"), String::from_str(&t.env, "B")]);
+    let outcomes = Vec::from_array(
+        &t.env,
+        [String::from_str(&t.env, "A"), String::from_str(&t.env, "B")],
+    );
 
     // 1. Valid prefixes
     let valid_prefixes: &[&[u8]] = &[b"https://", b"ipfs://", b"ar://"];
@@ -457,7 +464,11 @@ fn v6_test_metadata_uri_validation() {
             &3600,
             &Some(uri),
         );
-        assert!(result.is_ok(), "Valid prefix {:?} should be accepted", std::str::from_utf8(prefix));
+        assert!(
+            result.is_ok(),
+            "Valid prefix {:?} should be accepted",
+            std::str::from_utf8(prefix)
+        );
     }
 
     // 2. Invalid prefix
