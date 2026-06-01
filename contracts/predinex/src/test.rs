@@ -4613,9 +4613,9 @@ fn h1_double_fee_fix_treasury_correct_with_multiple_winners() {
         &3600u64,
     );
 
-    client.place_bet(&winner1, &pool_id, &0, &300); // 300 on A
-    client.place_bet(&winner2, &pool_id, &0, &100); // 100 on A
-    client.place_bet(&loser, &pool_id, &1, &200);   // 200 on B, loses
+    client.place_bet(&winner1, &pool_id, &0, &300, &None::<Address>); // 300 on A
+    client.place_bet(&winner2, &pool_id, &0, &100, &None::<Address>); // 100 on A
+    client.place_bet(&loser, &pool_id, &1, &200, &None::<Address>);   // 200 on B, loses
 
     env.ledger().with_mut(|l| l.timestamp = 3601);
     client.settle_pool(&creator, &pool_id, &0);
@@ -4635,5 +4635,4 @@ fn h1_double_fee_fix_treasury_correct_with_multiple_winners() {
     assert_eq!(treasury, 12i128, "treasury must equal exactly 2% of total pool");
 }
 
-}
 

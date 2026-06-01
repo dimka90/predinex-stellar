@@ -21,7 +21,7 @@ extern crate std;
 use super::*;
 use soroban_sdk::{
     testutils::{Address as _, Events},
-    Address, Env, String, Vec,
+    Address, Env, String, Vec, TryFromVal, Symbol,
 };
 
 // ── Test harness ──────────────────────────────────────────────────────────────
@@ -94,8 +94,7 @@ fn test_register_webhook_stores_and_get_webhooks_retrieves() {
     let event_types = ctx.event_types_all();
 
     ctx.client
-        .register_webhook(&ctx.admin, &url, &event_types)
-        .unwrap();
+        .register_webhook(&ctx.admin, &url, &event_types);
 
     let hooks = ctx.client.get_webhooks();
     assert_eq!(hooks.len(), 1);
@@ -110,11 +109,9 @@ fn test_register_webhook_multiple_urls_stored_independently() {
     let et = ctx.event_types_one();
 
     ctx.client
-        .register_webhook(&ctx.admin, &ctx.url("https://a.example.com/wh"), &et)
-        .unwrap();
+        .register_webhook(&ctx.admin, &ctx.url("https://a.example.com/wh"), &et);
     ctx.client
-        .register_webhook(&ctx.admin, &ctx.url("https://b.example.com/wh"), &et)
-        .unwrap();
+        .register_webhook(&ctx.admin, &ctx.url("https://b.example.com/wh"), &et);
 
     let hooks = ctx.client.get_webhooks();
     assert_eq!(hooks.len(), 2);
@@ -163,8 +160,7 @@ fn test_register_webhook_accepts_https_url_with_path_and_query() {
             &ctx.admin,
             &ctx.url("https://hooks.example.com/v1/predinex?token=abc123"),
             &ctx.event_types_one(),
-        )
-        .unwrap();
+        );
     assert_eq!(ctx.client.get_webhooks().len(), 1);
 }
 
@@ -197,8 +193,7 @@ fn test_register_webhook_enforces_max_10_limit() {
     for i in 0u32..10 {
         let url = std::format!("https://hook{}.example.com/wh", i);
         ctx.client
-            .register_webhook(&ctx.admin, &String::from_str(&ctx.env, &url), &et)
-            .unwrap();
+            .register_webhook(&ctx.admin, &String::from_str(&ctx.env, &url), &et);
     }
     assert_eq!(ctx.client.get_webhooks().len(), 10);
 
@@ -222,16 +217,14 @@ fn test_register_webhook_update_existing_does_not_count_toward_cap() {
     for i in 0u32..10 {
         let url = std::format!("https://hook{}.example.com/wh", i);
         ctx.client
-            .register_webhook(&ctx.admin, &String::from_str(&ctx.env, &url), &et)
-            .unwrap();
+            .register_webhook(&ctx.admin, &String::from_str(&ctx.env, &url), &et);
     }
 
     // Re-registering an existing URL must succeed (update, not new entry).
     let first_url = ctx.url("https://hook0.example.com/wh");
     let new_et = ctx.event_types_all();
     ctx.client
-        .register_webhook(&ctx.admin, &first_url, &new_et)
-        .unwrap();
+        .register_webhook(&ctx.admin, &first_url, &new_et);
 
     // Still exactly 10 entries.
     let hooks = ctx.client.get_webhooks();
@@ -264,14 +257,13 @@ fn test_register_webhook_emits_webhook_registered_event() {
     let url = ctx.url("https://events.example.com/wh");
 
     ctx.client
-        .register_webhook(&ctx.admin, &url, &ctx.event_types_one())
-        .unwrap();
+        .register_webhook(&ctx.admin, &url, &ctx.event_types_one());
 
     let events = ctx.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics
             .iter()
-            .any(|t| t == Symbol::new(&ctx.env, "webhook_registered").into())
+            .any(|t| Symbol::try_from_val(&ctx.env, &t) == Ok(Symbol::new(&ctx.env, "webhook_registered")))
     });
     assert!(found, "expected webhook_registered event to be emitted");
 }
@@ -283,11 +275,10 @@ fn test_unregister_webhook_removes_entry() {
     let ctx = Ctx::new();
     let url = ctx.url("https://example.com/wh");
     ctx.client
-        .register_webhook(&ctx.admin, &url, &ctx.event_types_one())
-        .unwrap();
+        .register_webhook(&ctx.admin, &url, &ctx.event_types_one());
     assert_eq!(ctx.client.get_webhooks().len(), 1);
 
-    ctx.client.unregister_webhook(&ctx.admin, &url).unwrap();
+    ctx.client.unregister_webhook(&ctx.admin, &url);
     assert_eq!(ctx.client.get_webhooks().len(), 0);
 }
 
@@ -298,10 +289,10 @@ fn test_unregister_webhook_removes_correct_entry_among_multiple() {
     let url_a = ctx.url("https://a.example.com/wh");
     let url_b = ctx.url("https://b.example.com/wh");
 
-    ctx.client.register_webhook(&ctx.admin, &url_a, &et).unwrap();
-    ctx.client.register_webhook(&ctx.admin, &url_b, &et).unwrap();
+    ctx.client.register_webhook(&ctx.admin, &url_a, &et);
+    ctx.client.register_webhook(&ctx.admin, &url_b, &et);
 
-    ctx.client.unregister_webhook(&ctx.admin, &url_a).unwrap();
+    ctx.client.unregister_webhook(&ctx.admin, &url_a);
 
     let hooks = ctx.client.get_webhooks();
     assert_eq!(hooks.len(), 1);
@@ -326,8 +317,7 @@ fn test_unregister_webhook_rejects_unauthorized_caller() {
     let ctx = Ctx::new();
     let url = ctx.url("https://example.com/wh");
     ctx.client
-        .register_webhook(&ctx.admin, &url, &ctx.event_types_one())
-        .unwrap();
+        .register_webhook(&ctx.admin, &url, &ctx.event_types_one());
 
     let stranger = Address::generate(&ctx.env);
     let result = ctx.client.try_unregister_webhook(&stranger, &url);
@@ -344,16 +334,15 @@ fn test_unregister_webhook_emits_webhook_unregistered_event() {
     let ctx = Ctx::new();
     let url = ctx.url("https://example.com/wh");
     ctx.client
-        .register_webhook(&ctx.admin, &url, &ctx.event_types_one())
-        .unwrap();
+        .register_webhook(&ctx.admin, &url, &ctx.event_types_one());
 
-    ctx.client.unregister_webhook(&ctx.admin, &url).unwrap();
+    ctx.client.unregister_webhook(&ctx.admin, &url);
 
     let events = ctx.env.events().all();
     let found = events.iter().any(|(_, topics, _)| {
         topics
             .iter()
-            .any(|t| t == Symbol::new(&ctx.env, "webhook_unregistered").into())
+            .any(|t| Symbol::try_from_val(&ctx.env, &t) == Ok(Symbol::new(&ctx.env, "webhook_unregistered")))
     });
     assert!(found, "expected webhook_unregistered event to be emitted");
 }
