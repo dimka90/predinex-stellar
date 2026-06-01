@@ -8,7 +8,9 @@
 
 import { X, Wallet, Smartphone, CheckCircle2, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { isWalletAvailable, WalletType } from '../lib/wallet-connector';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
+import { useFocusTrap } from '../lib/hooks/useFocusTrap';
+import { useEscapeDismiss } from '../lib/hooks/useEscapeDismiss';
 
 interface WalletModalProps {
     isOpen: boolean;
@@ -19,6 +21,11 @@ interface WalletModalProps {
 }
 
 export default function WalletModal({ isOpen, onClose, onSelectWallet, error, isLoading = false }: WalletModalProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const titleId = useId();
+    useFocusTrap({ active: isOpen, containerRef });
+    useEscapeDismiss({ active: isOpen, onDismiss: onClose });
+
     // Track if user has dismissed the migration guidance banner
     const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
@@ -93,10 +100,21 @@ export default function WalletModal({ isOpen, onClose, onSelectWallet, error, is
     ];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="glass border border-border rounded-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={onClose}
+        >
+            <div
+                ref={containerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                tabIndex={-1}
+                onClick={(e) => e.stopPropagation()}
+                className="glass border border-border rounded-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto outline-none"
+            >
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Connect Wallet</h2>
+                    <h2 id={titleId} className="text-2xl font-bold">Connect Wallet</h2>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-muted rounded-lg transition-colors"

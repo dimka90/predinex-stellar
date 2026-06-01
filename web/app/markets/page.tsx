@@ -10,6 +10,7 @@ import MarketGrid from "../components/MarketGrid";
 import Pagination from "../components/Pagination";
 import { useMarketDiscovery } from "../lib/hooks/useMarketDiscovery";
 import RouteErrorBoundary from "../../components/RouteErrorBoundary";
+import CompareBadge from "../components/CompareBadge";
 
 function MarketsContent() {
   const {
@@ -126,6 +127,8 @@ function MarketsContent() {
           />
         )}
       </div>
+
+      <CompareBadge />
     </main>
   );
 }

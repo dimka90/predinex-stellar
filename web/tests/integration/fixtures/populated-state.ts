@@ -17,12 +17,11 @@ export const ACTIVE_POOL: Pool = {
   description: 'Settlement based on CoinGecko 00:00 UTC closing price.',
   outcomeA: 'Yes',
   outcomeB: 'No',
-  totalA: 500_000_000,   // 50 XLM in stroops
-  totalB: 300_000_000,   // 30 XLM
-  participantCount: 8,
+  totalA: 500_000_000,
+  totalB: 300_000_000,
   settled: false,
-  winningOutcome: null,
-  expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+  winningOutcome: undefined,
+  expiry: Math.floor(Date.now() / 1000) + 3600,
   status: 'active',
 };
 
@@ -30,7 +29,7 @@ export const SETTLED_POOL: Pool = {
   ...ACTIVE_POOL,
   id: 2,
   settled: true,
-  winningOutcome: 'A',
+  winningOutcome: 0,
   status: 'settled',
 };
 
@@ -38,7 +37,7 @@ export const EXPIRED_UNSETTLED_POOL: Pool = {
   ...ACTIVE_POOL,
   id: 3,
   settled: false,
-  expiresAt: Math.floor(Date.now() / 1000) - 3600, // expired
+  expiry: Math.floor(Date.now() / 1000) - 3600,
   status: 'expired',
 };
 
@@ -46,18 +45,16 @@ export const POPULATED_MARKETS: Pool[] = [ACTIVE_POOL, SETTLED_POOL, EXPIRED_UNS
 
 /** The test user has bet on outcome A of pool #1. */
 export const USER_BET_ON_ACTIVE_POOL: UserBetData = {
-  poolId: 1,
-  outcome: 0, // A
-  amount: 50_000_000,  // 5 XLM
-  address: TEST_USER_ADDRESS,
+  amountA: 50_000_000,
+  amountB: 0,
+  totalBet: 50_000_000,
 };
 
 /** The test user won pool #2 (outcome A was the winner). */
 export const USER_BET_ON_SETTLED_POOL: UserBetData = {
-  poolId: 2,
-  outcome: 0, // A
-  amount: 100_000_000, // 10 XLM
-  address: TEST_USER_ADDRESS,
+  amountA: 100_000_000,
+  amountB: 0,
+  totalBet: 100_000_000,
 };
 
 export const USER_BETS = [USER_BET_ON_ACTIVE_POOL, USER_BET_ON_SETTLED_POOL];

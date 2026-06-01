@@ -581,8 +581,9 @@ fn l1_fifty_users_same_pool_multiple_winner_claims() {
     let winner_bet = 100i128;
     let loser_bet = 50i128;
 
-    let winners: alloc::vec::Vec<Address> =
-        (0..num_winners).map(|_| Address::generate(&t.env)).collect();
+    let winners: alloc::vec::Vec<Address> = (0..num_winners)
+        .map(|_| Address::generate(&t.env))
+        .collect();
     let losers: alloc::vec::Vec<Address> =
         (0..num_losers).map(|_| Address::generate(&t.env)).collect();
 
