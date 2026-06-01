@@ -3,6 +3,13 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ShareButton from '../../components/ShareButton';
 
+// Mock qrcode so tests don't depend on canvas / node-canvas in jsdom
+vi.mock('qrcode', () => ({
+  default: {
+    toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,FAKE_QR'),
+  },
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -237,16 +244,9 @@ describe('ShareButton', () => {
     const dialog = screen.getByRole('dialog', { name: /qr code/i });
     expect(dialog).toBeInTheDocument();
 
-    // The QR image should point at the qrserver.com API with the encoded URL
-    const img = screen.getByRole('img', { name: /qr code for/i });
-    expect(img).toHaveAttribute(
-      'src',
-      expect.stringContaining('https://api.qrserver.com/v1/create-qr-code/')
-    );
-    expect(img).toHaveAttribute(
-      'src',
-      expect.stringContaining(encodeURIComponent('https://example.com/markets/99'))
-    );
+    // The QR image is generated locally as a data: URL — no external request
+    const img = await screen.findByRole('img', { name: /qr code for/i });
+    expect(img).toHaveAttribute('src', 'data:image/png;base64,FAKE_QR');
   });
 
   it('closes the QR code popover when the close button is clicked', async () => {

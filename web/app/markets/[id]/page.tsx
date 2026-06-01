@@ -232,6 +232,7 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                                 )}
                             </button>
                             <ShareButton
+                                url={`${typeof window !== 'undefined' ? window.location.origin : ''}/markets/${id}`}
                                 title={pool.title}
                                 text={`Check out this prediction market: ${pool.title}`}
                             />
