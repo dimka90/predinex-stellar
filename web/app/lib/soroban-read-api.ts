@@ -594,6 +594,51 @@ export async function getPoolFromSoroban(
 }
 
 /**
+ * Fetch multiple pools in a single batch call via get_pools_batch.
+ * Reduces RPC calls from N+1 to 2 (pool count + batch fetch).
+ */
+export async function getPoolsBatchFromSoroban(
+  startId: number,
+  count: number,
+  config?: SorobanReadConfig
+): Promise<Pool[]> {
+  try {
+    const cfg = config ?? getSorobanConfig();
+
+    if (!cfg.contractId) {
+      return [];
+    }
+
+    const rawResult = await simulateContractRead(
+      cfg.rpcUrl,
+      cfg.contractId,
+      'get_pools_batch',
+      [startId, count]
+    );
+
+    if (!rawResult || !Array.isArray(rawResult)) {
+      return [];
+    }
+
+    const pools: Pool[] = [];
+    for (let i = 0; i < rawResult.length; i++) {
+      const rawPool = rawResult[i] as RawSorobanPool | null;
+      if (rawPool) {
+        const pool = normalizePool(rawPool, startId + i);
+        if (pool) {
+          pools.push(pool);
+        }
+      }
+    }
+    return pools;
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    console.error(`Failed to fetch pools batch (start: ${startId}, count: ${count}):`, error);
+    return [];
+  }
+}
+
+/**
  * Get user bet data from the Soroban contract.
  * Returns null if no bet exists or on error.
  */
@@ -757,6 +802,7 @@ export const sorobanReadApi = {
   getUserBet: getUserBetFromSoroban,
   getPoolBetLimits: getPoolBetLimitsFromSoroban,
   getPoolCount: getPoolCountFromSoroban,
+  getPoolsBatch: getPoolsBatchFromSoroban,
 };
 
 export type { Pool, UserBetData };
