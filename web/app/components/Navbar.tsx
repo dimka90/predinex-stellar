@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Menu, Settings, Wallet, Moon, Sun, Radio, X, Zap } from "lucide-react";
+import { LogOut, Menu, X, Wallet, Moon, Sun, Radio, Home, Zap, Settings } from "lucide-react";
 import { useWallet } from './WalletAdapterProvider';
 import { useTheme } from '../../lib/theme';
 import { useI18n } from '../lib/i18n';
@@ -79,8 +79,8 @@ export default function Navbar() {
                             </Link>
                         </div>
 
-                    {/* User Info & Connect Button - Desktop */}
-                    <div className="hidden md:flex items-center gap-4">
+                        {/* User Info & Connect Button - Desktop */}
+                        <div className="hidden md:flex items-center gap-4">
                         <button
                             onClick={toggleTheme}
                             className="p-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full border border-primary/20 transition-all hover:scale-110 active:scale-95"
@@ -115,17 +115,7 @@ export default function Navbar() {
                                     <Wallet className={ICON_CLASS.sm + " text-primary"} />
                                 </button>
                             </div>
-                        ) : (
-                            <button
-                                onClick={connect}
-                                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-full transition-colors font-medium text-sm"
-                                aria-label={t('nav.connectWallet')}
-                            >
-                                <Wallet className={ICON_CLASS.sm} />
-                                {t('nav.connectWallet')}
-                            </button>
-                        )}
-                    </div>
+                        ) : null}
 
                         {/* Mobile Menu Toggle - Show only when not connected */}
                         {!isConnected && (
@@ -147,6 +137,7 @@ export default function Navbar() {
                                 </button>
                             </div>
                         )}
+                        </div>
                     </div>
                 </div>
 

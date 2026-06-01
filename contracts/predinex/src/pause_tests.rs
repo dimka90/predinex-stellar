@@ -365,3 +365,82 @@ fn test_treasury_can_replace_freeze_admin() {
     let pool = ctx.client.get_pool(&pool_id).unwrap();
     assert_eq!(pool.status, PoolStatus::Frozen);
 }
+
+// ── #456 pause_contract / unpause_contract ────────────────────────────────────
+
+#[test]
+fn test_pause_contract_blocks_place_bet() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+
+    ctx.client.pause_contract(&ctx.token_admin);
+    assert!(ctx.client.is_paused());
+
+    let user = Address::generate(&ctx.env);
+    let token_admin_client = token::StellarAssetClient::new(&ctx.env, &ctx.token_id);
+    token_admin_client.mint(&user, &500);
+    let result = ctx
+        .client
+        .try_place_bet(&user, &pool_id, &0, &100, &None::<Address>);
+    assert!(result.is_err(), "place_bet must be blocked while paused");
+}
+
+#[test]
+fn test_unpause_contract_restores_place_bet() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+
+    ctx.client.pause_contract(&ctx.token_admin);
+    ctx.client.unpause_contract(&ctx.token_admin);
+    assert!(!ctx.client.is_paused());
+
+    let user = Address::generate(&ctx.env);
+    let token_admin_client = token::StellarAssetClient::new(&ctx.env, &ctx.token_id);
+    token_admin_client.mint(&user, &500);
+    ctx.client
+        .place_bet(&user, &pool_id, &0, &100, &None::<Address>);
+    let pool = ctx.client.get_pool(&pool_id).unwrap();
+    assert_eq!(pool.total_a, 100);
+}
+
+#[test]
+fn test_only_admin_can_pause_contract() {
+    let ctx = TestCtx::new();
+    let stranger = Address::generate(&ctx.env);
+    let result = ctx.client.try_pause_contract(&stranger);
+    assert!(result.is_err(), "non-admin must not be able to pause");
+}
+
+#[test]
+fn test_only_admin_can_unpause_contract() {
+    let ctx = TestCtx::new();
+    ctx.client.pause_contract(&ctx.token_admin);
+    let stranger = Address::generate(&ctx.env);
+    let result = ctx.client.try_unpause_contract(&stranger);
+    assert!(result.is_err(), "non-admin must not be able to unpause");
+}
+
+#[test]
+fn test_get_pool_readable_while_contract_paused() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    ctx.client.pause_contract(&ctx.token_admin);
+    let pool = ctx.client.get_pool(&pool_id);
+    assert!(pool.is_some(), "read-only queries must work while paused");
+}
+
+#[test]
+fn test_pause_contract_blocks_settle_pool() {
+    let ctx = TestCtx::new();
+    let pool_id = ctx.open_pool();
+    let user = Address::generate(&ctx.env);
+    let token_admin_client = token::StellarAssetClient::new(&ctx.env, &ctx.token_id);
+    token_admin_client.mint(&user, &500);
+    ctx.client
+        .place_bet(&user, &pool_id, &0, &100, &None::<Address>);
+
+    ctx.client.pause_contract(&ctx.token_admin);
+    ctx.env.ledger().with_mut(|li| li.timestamp = 7200);
+    let result = ctx.client.try_settle_pool(&ctx.pool_creator, &pool_id, &0);
+    assert!(result.is_err(), "settle_pool must be blocked while paused");
+}
