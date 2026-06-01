@@ -7,6 +7,7 @@ import { formatSTXAmount } from '../lib/market-utils';
 import { blocksToSeconds } from '../lib/countdown-utils';
 import { formatDisplayAddress } from '../lib/address-display';
 import { usePoolFavorites } from '../lib/hooks/usePoolFavorites';
+import { usePoolComparison, POOL_COMPARISON_MAX } from '../lib/hooks/usePoolComparison';
 import CountdownTimer from './CountdownTimer';
 
 interface MarketCardProps {
@@ -16,6 +17,9 @@ interface MarketCardProps {
 export default function MarketCard({ market }: MarketCardProps) {
   const { isFavorite, toggleFavorite } = usePoolFavorites();
   const favorite = isFavorite(market.poolId);
+  const compare = usePoolComparison();
+  const isCompared = compare.isSelected(market.poolId);
+  const compareDisabled = !isCompared && compare.atCapacity;
 
   const getStatusColor = (status: ProcessedMarket['status']) => {
     switch (status) {
@@ -99,6 +103,38 @@ export default function MarketCard({ market }: MarketCardProps) {
               </button>
             </div>
           </div>
+
+          {/* Compare selection (per pool) */}
+          <label
+            className={`flex items-center gap-2 mb-3 text-xs ${
+              compareDisabled ? 'text-muted-foreground/60 cursor-not-allowed' : 'text-muted-foreground cursor-pointer'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+            title={compareDisabled ? `You can compare at most ${POOL_COMPARISON_MAX} pools` : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={isCompared}
+              disabled={compareDisabled}
+              onChange={() => compare.toggle(market.poolId)}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              aria-label={
+                isCompared
+                  ? `Remove pool #${market.poolId} from comparison`
+                  : `Add pool #${market.poolId} to comparison`
+              }
+              className="h-4 w-4 rounded border-border/70 text-primary focus:ring-primary"
+            />
+            <span>
+              {isCompared
+                ? 'In comparison'
+                : compareDisabled
+                  ? `Compare full (${POOL_COMPARISON_MAX})`
+                  : 'Add to compare'}
+            </span>
+          </label>
 
           {/* Title and Description */}
           <h3 className="text-lg sm:text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2">
