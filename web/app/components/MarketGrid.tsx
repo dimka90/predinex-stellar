@@ -10,6 +10,7 @@ interface MarketGridProps {
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
+  onResetFilters?: () => void;
   searchQuery?: string;
   hasFilters?: boolean;
 }
@@ -19,6 +20,7 @@ export default function MarketGrid({
   isLoading, 
   error, 
   onRetry,
+  onResetFilters,
   searchQuery = '',
   hasFilters = false
 }: MarketGridProps) {
@@ -111,7 +113,7 @@ export default function MarketGrid({
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => window.location.reload()}
+                onClick={onResetFilters}
                 className="px-4 py-2 border border-muted/50 rounded-lg hover:bg-muted/50 
                          transition-colors duration-200"
               >
@@ -136,18 +138,23 @@ export default function MarketGrid({
     <div className="space-y-6">
       {/* Results count */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
           {markets.length} market{markets.length !== 1 ? 's' : ''} found
           {searchQuery && ` for "${searchQuery}"`}
         </p>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* #455 mobile: single column on mobile, 2 on md, 3 on lg, 4 on xl */}
+      <ul
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 list-none p-0 m-0"
+        aria-label="Prediction markets"
+      >
         {markets.map((market) => (
-          <MarketCard key={market.poolId} market={market} />
+          <li key={market.poolId}>
+            <MarketCard market={market} />
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }

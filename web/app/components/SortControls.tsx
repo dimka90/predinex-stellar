@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, TrendingUp, Clock, Calendar } from 'lucide-react';
+import { ChevronDown, TrendingUp, Clock, Calendar, Users } from 'lucide-react';
 import { SortOption } from '../lib/market-types';
 
 interface SortControlsProps {
@@ -28,6 +28,12 @@ const sortOptions: SortOptionConfig[] = [
     label: 'Highest Volume',
     icon: <TrendingUp className="w-4 h-4" />,
     description: 'Sort by total betting volume (highest first)'
+  },
+  {
+    value: 'participants',
+    label: 'Most Participants',
+    icon: <Users className="w-4 h-4" />,
+    description: 'Sort by participant count (highest first)'
   },
   {
     value: 'ending-soon',

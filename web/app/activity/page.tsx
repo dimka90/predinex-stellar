@@ -27,7 +27,7 @@ function toDateInput(timestamp: number) {
 
 export default function ActivityPage() {
   const { address: stxAddress } = useWallet();
-  const { activities, isLoading, error, refresh } = useUserActivity(stxAddress, 100);
+  const { activities, isLoading, error, refresh } = useUserActivity(stxAddress ?? undefined, 100);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');

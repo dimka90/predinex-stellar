@@ -7,6 +7,7 @@ import { formatSTXAmount } from '../lib/market-utils';
 import { blocksToSeconds } from '../lib/countdown-utils';
 import { formatDisplayAddress } from '../lib/address-display';
 import { usePoolFavorites } from '../lib/hooks/usePoolFavorites';
+import { usePoolComparison, POOL_COMPARISON_MAX } from '../lib/hooks/usePoolComparison';
 import CountdownTimer from './CountdownTimer';
 
 interface MarketCardProps {
@@ -16,6 +17,9 @@ interface MarketCardProps {
 export default function MarketCard({ market }: MarketCardProps) {
   const { isFavorite, toggleFavorite } = usePoolFavorites();
   const favorite = isFavorite(market.poolId);
+  const compare = usePoolComparison();
+  const isCompared = compare.isSelected(market.poolId);
+  const compareDisabled = !isCompared && compare.atCapacity;
 
   const getStatusColor = (status: ProcessedMarket['status']) => {
     switch (status) {
@@ -58,8 +62,8 @@ export default function MarketCard({ market }: MarketCardProps) {
 
 
   return (
-    <Link href={`/markets/${market.poolId}`}>
-      <div className="glass p-6 rounded-xl hover:border-primary/50 transition-all duration-200 cursor-pointer group h-full flex flex-col justify-between hover:shadow-lg hover:shadow-primary/10">
+    <Link href={`/markets/${market.poolId}`} aria-label={`View market: ${market.title}`}>
+      <div className="glass p-4 sm:p-6 rounded-xl hover:border-primary/50 transition-all duration-200 cursor-pointer group h-full flex flex-col justify-between hover:shadow-lg hover:shadow-primary/10">
         {/* Header */}
         <div>
           <div className="flex justify-between items-start mb-4">
@@ -69,6 +73,7 @@ export default function MarketCard({ market }: MarketCardProps) {
             <div className="flex items-center gap-2">
               <span
                 className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${getStatusColor(market.status)}`}
+                aria-label={`Status: ${getStatusText(market.status)}`}
               >
                 {getStatusIcon(market.status)}
                 {getStatusText(market.status)}
@@ -77,9 +82,9 @@ export default function MarketCard({ market }: MarketCardProps) {
               <button
                 type="button"
                 aria-label={favorite ? `Unfavorite pool #${market.poolId}` : `Favorite pool #${market.poolId}`}
+                aria-pressed={favorite}
                 title={favorite ? 'Remove bookmark' : 'Bookmark pool'}
                 onClick={(e) => {
-                  // Prevent the surrounding Link from navigating when toggling favorites.
                   e.preventDefault();
                   e.stopPropagation();
                   toggleFavorite(market.poolId);
@@ -91,19 +96,51 @@ export default function MarketCard({ market }: MarketCardProps) {
                 }`}
               >
                 {favorite ? (
-                  <Star className="w-4 h-4" fill="currentColor" strokeWidth={2} />
+                  <Star className="w-4 h-4" fill="currentColor" strokeWidth={2} aria-hidden="true" />
                 ) : (
-                  <StarOff className="w-4 h-4" />
+                  <StarOff className="w-4 h-4" aria-hidden="true" />
                 )}
               </button>
             </div>
           </div>
 
+          {/* Compare selection (per pool) */}
+          <label
+            className={`flex items-center gap-2 mb-3 text-xs ${
+              compareDisabled ? 'text-muted-foreground/60 cursor-not-allowed' : 'text-muted-foreground cursor-pointer'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+            title={compareDisabled ? `You can compare at most ${POOL_COMPARISON_MAX} pools` : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={isCompared}
+              disabled={compareDisabled}
+              onChange={() => compare.toggle(market.poolId)}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              aria-label={
+                isCompared
+                  ? `Remove pool #${market.poolId} from comparison`
+                  : `Add pool #${market.poolId} to comparison`
+              }
+              className="h-4 w-4 rounded border-border/70 text-primary focus:ring-primary"
+            />
+            <span>
+              {isCompared
+                ? 'In comparison'
+                : compareDisabled
+                  ? `Compare full (${POOL_COMPARISON_MAX})`
+                  : 'Add to compare'}
+            </span>
+          </label>
+
           {/* Title and Description */}
-          <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2">
+          <h3 className="text-lg sm:text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2">
             {market.title}
           </h3>
-          <p className="text-sm text-muted-foreground mb-6 line-clamp-3">
+          <p className="text-sm text-muted-foreground mb-4 sm:mb-6 line-clamp-3">
             {market.description}
           </p>
         </div>
@@ -117,7 +154,7 @@ export default function MarketCard({ market }: MarketCardProps) {
                 <span className="font-medium text-green-400">{market.outcomeA}</span>
                 <span className="text-xs text-muted-foreground">({market.oddsA}%)</span>
               </div>
-              <span className="text-muted-foreground text-xs">vs</span>
+              <span className="text-muted-foreground text-xs" aria-hidden="true">vs</span>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">({market.oddsB}%)</span>
                 <span className="font-medium text-red-400">{market.outcomeB}</span>
@@ -125,13 +162,17 @@ export default function MarketCard({ market }: MarketCardProps) {
             </div>
 
             {/* Odds visualization bar */}
-            <div className="w-full h-2 bg-muted/30 rounded-full overflow-hidden">
+            <div
+              className="w-full h-2 bg-muted/30 rounded-full overflow-hidden"
+              role="img"
+              aria-label={`Odds: ${market.outcomeA} ${market.oddsA}%, ${market.outcomeB} ${market.oddsB}%`}
+            >
               <div className="h-full flex">
-                <div 
+                <div
                   className="bg-green-400 transition-all duration-300"
                   style={{ width: `${market.oddsA}%` }}
                 />
-                <div 
+                <div
                   className="bg-red-400 transition-all duration-300"
                   style={{ width: `${market.oddsB}%` }}
                 />
@@ -142,7 +183,7 @@ export default function MarketCard({ market }: MarketCardProps) {
           {/* Stats */}
           <div className="flex justify-between items-center text-sm">
             <div className="flex items-center gap-1 text-muted-foreground">
-              <TrendingUp className="w-4 h-4" />
+              <TrendingUp className="w-4 h-4" aria-hidden="true" />
               <span>{formatSTXAmount(market.totalVolume)}</span>
             </div>
             <div className="flex items-center gap-1 text-muted-foreground">
@@ -158,7 +199,7 @@ export default function MarketCard({ market }: MarketCardProps) {
 
           {/* Creator info */}
           <div className="flex items-center gap-1 text-xs text-muted-foreground pt-2 border-t border-muted/20">
-            <Users className="w-3 h-3" />
+            <Users className="w-3 h-3" aria-hidden="true" />
             <span>Created by {formatDisplayAddress(market.creator)}</span>
           </div>
         </div>

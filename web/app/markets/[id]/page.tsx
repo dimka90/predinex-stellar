@@ -15,6 +15,7 @@ import { blocksToSeconds } from "../../lib/countdown-utils";
 import CountdownTimer from "../../components/CountdownTimer";
 import DisputeHistoryTimeline from "../../components/DisputeHistoryTimeline";
 import { useDisputeHistory } from "../../lib/hooks/useDisputeHistory";
+import PoolActivityTimeline from "../../components/PoolActivityTimeline";
 import { TrendingUp, Users, Clock, RefreshCw, AlertCircle, Star, StarOff } from "lucide-react";
 import { use } from "react";
 import ShareButton from "../../../components/ShareButton";
@@ -354,6 +355,12 @@ export default function PoolDetails({ params }: { params: Promise<{ id: string }
                         events={disputeEvents}
                         isLoading={isLoadingDisputes}
                         error={disputeError}
+                    />
+
+                    <PoolActivityTimeline
+                        poolId={poolId}
+                        outcomeLabels={[pool.outcomeA, pool.outcomeB]}
+                        maxInitialEvents={100}
                     />
                 </div>
             </div>

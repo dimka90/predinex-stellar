@@ -54,71 +54,94 @@ function setWalletState(
   vi.mocked(WalletAdapterProvider.useWallet).mockReturnValue(wallet as never);
 }
 
-async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/question/i), 'Will BTC hit 100k?');
+async function fillStep1(user: ReturnType<typeof userEvent.setup>, outcomeB = 'No') {
+  await user.type(screen.getByLabelText(/question \/ title/i), 'Will BTC hit 100k?');
   await user.type(
     screen.getByLabelText(/description/i),
     'Resolution based on Coinbase price at midnight UTC.'
   );
   await user.type(screen.getByLabelText(/outcome a/i), 'Yes');
-  await user.type(screen.getByLabelText(/outcome b/i), 'No');
-  await user.clear(screen.getByLabelText(/duration/i));
-  await user.type(screen.getByLabelText(/duration/i), '1440');
+  await user.type(screen.getByLabelText(/outcome b/i), outcomeB);
 }
 
-describe('CreateMarket page', () => {
+async function fillStep2(user: ReturnType<typeof userEvent.setup>, durationSeconds = 1440) {
+  const durationInput = screen.getByLabelText(/duration/i);
+  await user.clear(durationInput);
+  await user.type(durationInput, String(durationSeconds));
+}
+
+async function advanceToReview(user: ReturnType<typeof userEvent.setup>) {
+  await fillStep1(user);
+  await user.click(screen.getByRole('button', { name: /^next/i }));
+  await fillStep2(user);
+  await user.click(screen.getByRole('button', { name: /^next/i }));
+}
+
+describe('CreateMarket wizard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
     setWalletState();
   });
 
-  it('renders all form fields', () => {
+  it('renders step 1 fields on initial mount', () => {
     renderWithProviders(<CreateMarket />);
 
-    expect(screen.getByLabelText(/question/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/question \/ title/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/outcome a/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/outcome b/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/duration/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /create market/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^next/i })).toBeInTheDocument();
   });
 
-  it('shows inline validation errors and blocks transaction on invalid submit', async () => {
+  it('blocks step 1 advancement when fields are empty and surfaces errors', async () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateMarket />);
 
-    await user.click(screen.getByRole('button', { name: /create market/i }));
+    const nextBtn = screen.getByRole('button', { name: /^next/i });
+    expect(nextBtn).toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(nextBtn);
+    // Still on step 1 — duration label (step 2) is not visible.
+    expect(screen.queryByLabelText(/duration/i)).not.toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
+      const alerts = screen.queryAllByRole('alert');
+      expect(alerts.length).toBeGreaterThan(0);
     });
-
-    expect(predinexContract.createMarketSoroban).not.toHaveBeenCalled();
   });
 
-  it('shows a validation error when outcomes are identical', async () => {
+  it('shows a validation error when outcomes match on step 1', async () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateMarket />);
 
-    await user.type(screen.getByLabelText(/question/i), 'Will BTC hit 100k?');
-    await user.type(
-      screen.getByLabelText(/description/i),
-      'Resolution based on Coinbase price at midnight UTC.'
-    );
-    await user.type(screen.getByLabelText(/outcome a/i), 'Yes');
-    await user.type(screen.getByLabelText(/outcome b/i), 'Yes');
-    await user.type(screen.getByLabelText(/duration/i), '1440');
-
-    await user.click(screen.getByRole('button', { name: /create market/i }));
+    await fillStep1(user, 'YES');
+    await user.click(screen.getByRole('button', { name: /^next/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/outcomes must be different/i)).toBeInTheDocument();
     });
-    expect(predinexContract.createMarketSoroban).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/question \/ title/i)).toBeInTheDocument(); // still on step 1
   });
 
-  it('calls createMarketSoroban with correct args on valid submit', async () => {
+  it('advances through all three steps and shows the live preview', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<CreateMarket />);
+
+    await fillStep1(user);
+    await user.click(screen.getByRole('button', { name: /^next/i }));
+    expect(await screen.findByLabelText(/duration/i)).toBeInTheDocument();
+
+    await fillStep2(user);
+    await user.click(screen.getByRole('button', { name: /^next/i }));
+
+    // Review step renders the live preview — title appears in summary row AND in MarketCard.
+    const titles = await screen.findAllByText(/Will BTC hit 100k\?/);
+    expect(titles.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole('button', { name: /create market/i })).toBeInTheDocument();
+  });
+
+  it('submits createMarketSoroban with the wizard draft on step 3', async () => {
     vi.mocked(predinexContract.createMarketSoroban).mockResolvedValue({
       txHash: 'mock-tx-id-123',
     });
@@ -126,7 +149,7 @@ describe('CreateMarket page', () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateMarket />);
 
-    await fillValidForm(user);
+    await advanceToReview(user);
     await user.click(screen.getByRole('button', { name: /create market/i }));
 
     await waitFor(() => {
@@ -146,7 +169,7 @@ describe('CreateMarket page', () => {
     );
   });
 
-  it('shows success feedback after transaction completes', async () => {
+  it('shows success feedback after the transaction completes', async () => {
     vi.mocked(predinexContract.createMarketSoroban).mockResolvedValue({
       txHash: 'mock-tx-id-123',
     });
@@ -154,33 +177,39 @@ describe('CreateMarket page', () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateMarket />);
 
-    await fillValidForm(user);
+    await advanceToReview(user);
     await user.click(screen.getByRole('button', { name: /create market/i }));
 
-    const status = await screen.findByRole('status');
-    expect(within(status).getByText(/^market created!$/i)).toBeInTheDocument();
+    // The success banner is the role="status" container that holds the heading.
+    const heading = await screen.findByText(/^market created!$/i);
+    const status = heading.closest('[role="status"]') as HTMLElement;
+    expect(status).not.toBeNull();
     expect(within(status).getByText(/mock-tx-id-123/i)).toBeInTheDocument();
   });
 
-  it('calls connect when wallet is not connected and form is submitted', async () => {
+  it('calls connect when wallet is disconnected and step 3 is submitted', async () => {
     setWalletState(disconnectedWallet);
     const user = userEvent.setup();
     renderWithProviders(<CreateMarket />);
 
+    await advanceToReview(user);
     await user.click(screen.getByRole('button', { name: /create market/i }));
 
     expect(mockConnect).toHaveBeenCalledTimes(1);
     expect(predinexContract.createMarketSoroban).not.toHaveBeenCalled();
   });
 
-  it('clears field error when user starts typing', async () => {
+  it('clears a field error when the user starts typing again', async () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateMarket />);
 
-    await user.click(screen.getByRole('button', { name: /create market/i }));
-    await waitFor(() => expect(screen.getAllByRole('alert').length).toBeGreaterThan(0));
+    await user.click(screen.getByLabelText(/question \/ title/i));
+    await user.tab(); // trigger blur → error
+    await waitFor(() => {
+      expect(screen.queryByText(/title is required/i)).toBeInTheDocument();
+    });
 
-    await user.type(screen.getByLabelText(/question/i), 'A');
+    await user.type(screen.getByLabelText(/question \/ title/i), 'A solid question');
 
     await waitFor(() => {
       expect(screen.queryByText(/title is required/i)).not.toBeInTheDocument();
