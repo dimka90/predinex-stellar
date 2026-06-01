@@ -49,6 +49,13 @@ export class WalletErrorBoundary extends Component<Props, State> {
       this.props.onError(error, errorInfo);
     }
 
+    import('@/app/lib/error-reporter').then(({ reportError }) =>
+      reportError(error, {
+        componentStack: errorInfo.componentStack ?? undefined,
+        boundary: 'WalletErrorBoundary',
+      })
+    );
+
     // Log to external service in production
     if (process.env.NODE_ENV === 'production') {
       this.logErrorToService(error, errorInfo);

@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DashboardData, DashboardFilters, ClaimTransaction } from '../dashboard-types';
 import { fetchDashboardData, claimWinnings } from '../dashboard-api';
+import { invalidateOnClaimWinnings } from '../cache-invalidation';
+import { useVisibilityAwarePolling } from './useVisibilityAwarePolling';
+import { notifyBrowserEvent } from '../notifications';
 
 interface UseDashboardDataState {
   // Data
@@ -50,11 +53,11 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
   const [filters, setFiltersState] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [claimTransactions, setClaimTransactions] = useState<Map<number, ClaimTransaction>>(new Map());
   
-  // Refs for managing intervals and retry logic
-  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Refs for managing retry logic
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
   const isMountedRef = useRef(true);
+  const previousDataRef = useRef<DashboardData | null>(null);
 
   // Fetch dashboard data
   const fetchData = useCallback(async (showLoading: boolean = true) => {
@@ -74,9 +77,35 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
       const dashboardData = await fetchDashboardData(userAddress);
       
       if (isMountedRef.current) {
+        const previousData = previousDataRef.current;
         setData(dashboardData);
         setIsConnected(true);
         retryCountRef.current = 0;
+
+        if (previousData) {
+          if (dashboardData.userPortfolio.totalClaimable > previousData.userPortfolio.totalClaimable) {
+            notifyBrowserEvent('Payout available', {
+              body: `${dashboardData.userPortfolio.totalClaimable.toFixed(2)} STX is claimable.`,
+              tag: 'predinex-payout-available',
+            });
+          }
+
+          if (dashboardData.activeBets.length > previousData.activeBets.length) {
+            notifyBrowserEvent('Active bets updated', {
+              body: 'Your dashboard has new active positions.',
+              tag: 'predinex-active-bets-update',
+            });
+          }
+
+          if (dashboardData.userPortfolio.totalWinnings > previousData.userPortfolio.totalWinnings) {
+            notifyBrowserEvent('Bet resolved', {
+              body: 'A position settled in your favor.',
+              tag: 'predinex-bet-resolved',
+            });
+          }
+        }
+
+        previousDataRef.current = dashboardData;
       }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
@@ -108,34 +137,19 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
     await fetchData(true);
   }, [fetchData]);
 
-  // Set up automatic updates
-  useEffect(() => {
-    if (!userAddress) return;
-
-    // Initial fetch
-    fetchData(true);
-
-    // Set up interval for automatic updates
-    updateIntervalRef.current = setInterval(() => {
-      if (isMountedRef.current && isConnected) {
-        fetchData(false); // Background update without loading state
-      }
-    }, UPDATE_INTERVAL);
-
-    return () => {
-      if (updateIntervalRef.current) {
-        clearInterval(updateIntervalRef.current);
-      }
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, [userAddress, fetchData, isConnected]);
+  useVisibilityAwarePolling(
+    () => fetchData(false),
+    UPDATE_INTERVAL,
+    { enabled: !!userAddress }
+  );
 
   // Handle component unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -159,6 +173,11 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
       const result = await claimWinnings(poolId);
       
       if (result.success) {
+        // Invalidate all caches affected by this claim
+        if (userAddress) {
+          invalidateOnClaimWinnings({ poolId, userAddress });
+        }
+
         // Update claim status to success
         setClaimTransactions(prev => new Map(prev).set(poolId, {
           poolId,
@@ -204,6 +223,7 @@ export function useDashboardData(userAddress: string | null): UseDashboardDataSt
       setData(null);
       setError(null);
       setClaimTransactions(new Map());
+      previousDataRef.current = null;
       retryCountRef.current = 0;
     }
   }, [userAddress]);

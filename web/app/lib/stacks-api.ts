@@ -1,3 +1,14 @@
+/**
+ * @deprecated This module is deprecated and maintained for backward compatibility only.
+ *
+ * The Stacks/Hiro API integration is being phased out in favor of Soroban-native reads.
+ * For new code, please use:
+ * - `soroban-read-api.ts` for contract reads (getPool, getUserBet, getPoolCount)
+ * - `soroban-event-service.ts` for user activity
+ * - `predinex-read-api.ts` as the canonical adapter interface
+ *
+ * This file will be removed in a future release.
+ */
 import { STACKS_MAINNET, STACKS_TESTNET, StacksNetwork } from "@stacks/network";
 import { fetchCallReadOnlyFunction, cvToValue, uintCV, principalCV, ClarityValue } from "@stacks/transactions";
 import { getRuntimeConfig } from "./runtime-config";
@@ -16,6 +27,16 @@ export interface Pool {
     outcomeB: string;
     totalA: number;
     totalB: number;
+    /**
+     * Per-pool bet minimum in raw token units (stroops).
+     * When absent (legacy pools / older deployments), the UI falls back to defaults.
+     */
+    minBet?: number;
+    /**
+     * Per-pool bet maximum in raw token units (stroops).
+     * A value of `0` may be treated as "no maximum" by the frontend.
+     */
+    maxBet?: number;
     settled: boolean;
     winningOutcome: number | undefined;
     expiry: number;

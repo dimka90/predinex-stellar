@@ -75,6 +75,12 @@ export class RouteErrorBoundary extends Component<
       error,
       errorInfo
     );
+    import('@/app/lib/error-reporter').then(({ reportError }) =>
+      reportError(error, {
+        componentStack: errorInfo.componentStack ?? undefined,
+        boundary: `RouteErrorBoundary(${this.props.routeName ?? 'unknown'})`,
+      })
+    );
   }
 
   private handleReset = () => {

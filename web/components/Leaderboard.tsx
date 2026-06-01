@@ -37,7 +37,7 @@ const Leaderboard = memo(function Leaderboard({ currentUserAddress }: Leaderboar
 
       {/* Ranking formula explanation */}
       <p className="text-xs text-muted-foreground mb-4">
-        Ranked by total STX volume contributed across all prediction pools.
+        Ranked by total net profits (winnings - wagered).
       </p>
 
       {error && (
@@ -70,9 +70,9 @@ const Leaderboard = memo(function Leaderboard({ currentUserAddress }: Leaderboar
           {entries.slice(0, 10).map((entry) => {
             const isCurrentUser = currentUserAddress && entry.address === currentUserAddress;
             const rankColor = RANK_COLORS[entry.rank] ?? 'text-muted-foreground';
-            const scoreDisplay = entry.totalWagered >= 1_000_000
-              ? `${(entry.totalWagered / 1_000_000).toFixed(2)} STX`
-              : `${entry.totalWagered.toLocaleString()} μSTX`;
+            const profitsDisplay = entry.totalProfits >= 1_000_000
+              ? `${(entry.totalProfits / 1_000_000).toFixed(2)} STX`
+              : `${entry.totalProfits.toLocaleString()} μSTX`;
 
             return (
               <div
@@ -98,11 +98,14 @@ const Leaderboard = memo(function Leaderboard({ currentUserAddress }: Leaderboar
                       )}
                     </span>
                     <p className="text-xs text-muted-foreground">
-                      {entry.poolsParticipated} pool{entry.poolsParticipated !== 1 ? 's' : ''}
+                      {entry.totalPredictions} predictions • {entry.winPercentage.toFixed(1)}% win rate
+                      {entry.currentStreak > 0 && (
+                        <span className="ml-2 text-green-400">• {entry.currentStreak}🔥</span>
+                      )}
                     </p>
                   </div>
                 </div>
-                <span className="font-bold text-primary text-sm">{scoreDisplay}</span>
+                <span className="font-bold text-primary text-sm">{profitsDisplay}</span>
               </div>
             );
           })}

@@ -1,8 +1,10 @@
 'use client';
 
+import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Target, Trophy, Activity } from 'lucide-react';
 import { UserPortfolio } from '../../lib/dashboard-types';
 import { formatCurrency, formatPercentage, formatProfitLoss } from '../../lib/dashboard-utils';
+import { selectPortfolioMetricCards } from '../../lib/dashboard-selectors';
 
 interface PortfolioOverviewProps {
   portfolio: UserPortfolio;
@@ -10,7 +12,8 @@ interface PortfolioOverviewProps {
 }
 
 export default function PortfolioOverview({ portfolio, isLoading = false }: PortfolioOverviewProps) {
-  const profitLossData = formatProfitLoss(portfolio.profitLoss);
+  const profitLossData = useMemo(() => formatProfitLoss(portfolio.profitLoss), [portfolio.profitLoss]);
+  const metrics = useMemo(() => selectPortfolioMetricCards(portfolio), [portfolio]);
 
   if (isLoading) {
     return (
@@ -46,68 +49,56 @@ export default function PortfolioOverview({ portfolio, isLoading = false }: Port
     );
   }
 
-  const metrics = [
-    {
-      title: 'Total Portfolio Value',
-      value: formatCurrency(portfolio.totalWagered + portfolio.profitLoss),
-      subtitle: `${portfolio.totalBets} total bets`,
-      icon: DollarSign,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10'
-    },
-    {
-      title: 'Active Bets',
-      value: portfolio.activeBets.toString(),
-      subtitle: formatCurrency(portfolio.totalWagered - (portfolio.totalBets - portfolio.activeBets) * (portfolio.totalWagered / portfolio.totalBets)),
-      icon: Activity,
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10'
-    },
-    {
-      title: 'Total Wagered',
-      value: formatCurrency(portfolio.totalWagered),
-      subtitle: `Avg: ${formatCurrency(portfolio.totalBets > 0 ? portfolio.totalWagered / portfolio.totalBets : 0)} per bet`,
-      icon: Target,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10'
-    },
-    {
-      title: 'Total Winnings',
-      value: formatCurrency(portfolio.totalWinnings),
-      subtitle: `${formatPercentage(portfolio.winRate)} win rate`,
-      icon: Trophy,
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10'
-    },
-    {
-      title: 'Claimable Amount',
-      value: formatCurrency(portfolio.totalClaimable),
-      subtitle: portfolio.totalClaimable > 0 ? 'Ready to claim' : 'No pending claims',
-      icon: DollarSign,
-      color: portfolio.totalClaimable > 0 ? 'text-green-500' : 'text-muted-foreground',
-      bgColor: portfolio.totalClaimable > 0 ? 'bg-green-500/10' : 'bg-muted/10'
-    },
-    {
-      title: 'Profit/Loss',
-      value: profitLossData.formatted,
-      subtitle: profitLossData.isBreakeven
-        ? 'Break even'
-        : profitLossData.isProfit
-          ? 'Profitable'
-          : 'In loss',
-      icon: profitLossData.isProfit ? TrendingUp : TrendingDown,
-      color: profitLossData.isBreakeven
-        ? 'text-muted-foreground'
-        : profitLossData.isProfit
-          ? 'text-green-500'
-          : 'text-red-500',
-      bgColor: profitLossData.isBreakeven
-        ? 'bg-muted/10'
-        : profitLossData.isProfit
-          ? 'bg-green-500/10'
-          : 'bg-red-500/10'
-    }
-  ];
+  const renderedMetrics = useMemo(
+    () =>
+      metrics.map((metric) => {
+        const icon =
+          metric.title === 'Total Portfolio Value'
+            ? DollarSign
+            : metric.title === 'Active Bets'
+              ? Activity
+              : metric.title === 'Total Wagered'
+                ? Target
+                : metric.title === 'Total Winnings'
+                  ? Trophy
+                  : metric.title === 'Claimable Amount'
+                    ? DollarSign
+                    : metric.title === 'Profit/Loss'
+                      ? profitLossData.isProfit
+                        ? TrendingUp
+                        : TrendingDown
+                      : DollarSign;
+
+        const color =
+          metric.tone === 'blue'
+            ? 'text-blue-500'
+            : metric.tone === 'green'
+              ? 'text-green-500'
+              : metric.tone === 'purple'
+                ? 'text-purple-500'
+                : metric.tone === 'yellow'
+                  ? 'text-yellow-500'
+                  : metric.tone === 'red'
+                    ? 'text-red-500'
+                    : 'text-muted-foreground';
+
+        const bgColor =
+          metric.tone === 'blue'
+            ? 'bg-blue-500/10'
+            : metric.tone === 'green'
+              ? 'bg-green-500/10'
+              : metric.tone === 'purple'
+                ? 'bg-purple-500/10'
+                : metric.tone === 'yellow'
+                  ? 'bg-yellow-500/10'
+                  : metric.tone === 'red'
+                    ? 'bg-red-500/10'
+                    : 'bg-muted/10';
+
+        return { ...metric, icon, color, bgColor };
+      }),
+    [metrics, profitLossData.isProfit],
+  );
 
   return (
     <div className="space-y-6">
@@ -119,7 +110,7 @@ export default function PortfolioOverview({ portfolio, isLoading = false }: Port
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {metrics.map((metric, index) => {
+        {renderedMetrics.map((metric, index) => {
           const Icon = metric.icon;
 
           return (

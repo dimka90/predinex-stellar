@@ -2,7 +2,7 @@
 
 import { useAppKitNetwork } from '@reown/appkit/react';
 import { getRuntimeConfig } from '@/app/lib/runtime-config';
-import { stacksNetworks } from '@/lib/appkit-config';
+import { stellarNetworks } from '@/lib/appkit-config';
 import { useCallback, useMemo } from 'react';
 
 /**
@@ -12,23 +12,25 @@ import { useCallback, useMemo } from 'react';
 export function useNetworkMismatch() {
   const { caipNetwork, switchNetwork } = useAppKitNetwork();
   const config = getRuntimeConfig();
-  
+
   // expectedNetwork is 'mainnet' or 'testnet' from NEXT_PUBLIC_NETWORK
   const expectedNetworkType = config.network;
-  
-  // caipNetwork?.id is usually 'stacks:mainnet' or 'stacks:testnet'
+
+  // caipNetwork?.id is a CAIP-2 chain id, e.g. 'stellar:pubnet' or 'stellar:testnet'
   const currentNetworkId = caipNetwork?.id;
-  const expectedNetworkId = expectedNetworkType === 'mainnet' ? 'stacks:mainnet' : 'stacks:testnet';
-  
+  const expectedNetworkId =
+    expectedNetworkType === 'mainnet' ? stellarNetworks.mainnet.id : stellarNetworks.testnet.id;
+
   const isMismatch = useMemo(() => {
     if (!currentNetworkId) return false;
     return currentNetworkId !== expectedNetworkId;
   }, [currentNetworkId, expectedNetworkId]);
 
   const handleSwitchNetwork = useCallback(async () => {
-    const targetNetwork = expectedNetworkType === 'mainnet' ? stacksNetworks.mainnet : stacksNetworks.testnet;
+    const targetNetwork =
+      expectedNetworkType === 'mainnet' ? stellarNetworks.mainnet : stellarNetworks.testnet;
     try {
-      await (switchNetwork as any)(targetNetwork);
+      await (switchNetwork as unknown as (n: typeof targetNetwork) => Promise<void>)(targetNetwork);
     } catch (error) {
       console.error('Failed to switch network:', error);
       throw error;
@@ -38,7 +40,8 @@ export function useNetworkMismatch() {
   return {
     isMismatch,
     expectedNetworkType,
-    expectedNetworkName: expectedNetworkType === 'mainnet' ? 'Stacks Mainnet' : 'Stacks Testnet',
+    expectedNetworkName:
+      expectedNetworkType === 'mainnet' ? stellarNetworks.mainnet.name : stellarNetworks.testnet.name,
     currentNetworkName: caipNetwork?.name || 'Unknown',
     switchNetwork: handleSwitchNetwork,
   };

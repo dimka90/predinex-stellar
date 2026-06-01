@@ -20,6 +20,10 @@ export const CONTRACT_ADDRESS: string =
 export const CONTRACT_NAME: string =
     process.env.NEXT_PUBLIC_CONTRACT_NAME || 'predinex-contract';
 
+// Maximum pool duration that the frontend allows when creating a new market.
+// This mirrors the contract-side maximum and protects against long-lived pools.
+export const MAX_POOL_DURATION_SECONDS = 1_000_000;
+
 export interface NetworkConfig {
     apiUrl: string;
     explorerUrl: string;

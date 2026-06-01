@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { ProcessedMarket, MarketFilters, PaginationState } from '../market-types';
 import { readBlockHeightWarning, readMarketListCache, warmMarketListCache } from '../market-list-cache';
 import {
@@ -8,6 +8,7 @@ import {
   getConnectivityMessage,
   withTimeout,
 } from '../network-errors';
+import { useVisibilityAwarePolling } from './useVisibilityAwarePolling';
 
 interface UseMarketDiscoveryState {
   // Data
@@ -35,6 +36,7 @@ interface UseMarketDiscoveryState {
 }
 
 const ITEMS_PER_PAGE = 12;
+const REFRESH_INTERVAL_MS = 60_000;
 
 /**
  * useMarketDiscovery
@@ -68,6 +70,16 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
   const [allMarkets, setAllMarkets] = useState<ProcessedMarket[]>(cacheSnapshot.markets);
   const [isLoading, setIsLoading] = useState<boolean>(() => !cacheSnapshot.isFresh);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+    };
+  }, []);
   
   // Filter state – flattened so useMemo deps can be individual scalars
   const [search, setSearchState] = useState('');
@@ -82,23 +94,33 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
 
   // Fetch markets data
   const fetchMarkets = useCallback(async (options?: { forceLoading?: boolean }) => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     const shouldShowLoading =
       options?.forceLoading || !hasFreshInitialCacheRef.current;
+    const isCurrentRequest = () => mountedRef.current && requestIdRef.current === requestId;
 
     try {
-      if (shouldShowLoading) setIsLoading(true);
-      setError(null);
+      if (shouldShowLoading && mountedRef.current) setIsLoading(true);
+      if (mountedRef.current) setError(null);
       
       const processedMarkets = await withTimeout(
         warmMarketListCache(),
         12000,
         'Market loading timeout'
       );
+
+      if (!isCurrentRequest()) {
+        return;
+      }
       
       setAllMarkets(processedMarkets);
       hasAnyMarketsRef.current = processedMarkets.length > 0;
       setBlockHeightWarning(readBlockHeightWarning());
     } catch (err) {
+      if (!isCurrentRequest()) {
+        return;
+      }
       console.error('Failed to fetch markets:', err);
       const issue = classifyConnectivityIssue(err);
       const message = getConnectivityMessage(issue, 'Loading markets');
@@ -111,15 +133,14 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
         setError(message);
       }
     } finally {
-      setIsLoading(false);
-      hasFreshInitialCacheRef.current = true;
+      if (isCurrentRequest()) {
+        setIsLoading(false);
+        hasFreshInitialCacheRef.current = true;
+      }
     }
   }, []);
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchMarkets();
-  }, [fetchMarkets]);
+  useVisibilityAwarePolling(fetchMarkets, REFRESH_INTERVAL_MS);
 
   // Filter and sort markets
   // Deps are individual scalars — prevents spurious recalculation from a new
@@ -165,7 +186,6 @@ export function useMarketDiscovery(): UseMarketDiscoveryState {
     }
 
     return sorted;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMarkets, search, status, sortBy]);
 
   // Keep the ref in sync with the latest filtered count (no extra render)

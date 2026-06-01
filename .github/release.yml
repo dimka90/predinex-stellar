@@ -1,0 +1,31 @@
+changelog:
+  exclude:
+    labels:
+      - duplicate
+      - invalid
+      - wontfix
+  categories:
+    - title: "⛓ Contract"
+      labels:
+        - "area: contract"
+    - title: "🌐 Web"
+      labels:
+        - "area: web"
+    - title: "📖 Docs"
+      labels:
+        - "area: docs"
+    - title: "⚙️ Ops & CI"
+      labels:
+        - "area: ops"
+    - title: "🐛 Bug Fixes"
+      labels:
+        - bug
+    - title: "✨ Enhancements"
+      labels:
+        - enhancement
+    - title: "🔒 Security"
+      labels:
+        - security
+    - title: "Other Changes"
+      labels:
+        - "*"

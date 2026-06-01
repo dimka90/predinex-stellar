@@ -159,6 +159,7 @@ export function useIncentives() {
   return {
     config,
     incentives,
+    setIncentives,
     isLoading,
     error,
     calculateBetIncentive,

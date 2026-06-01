@@ -2,10 +2,10 @@
 
 import { useAppKitNetwork } from '@reown/appkit/react';
 import { useWallet } from './WalletAdapterProvider';
-import { Globe, Check, AlertCircle } from 'lucide-react';
+import { Globe, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { NetworkType } from '@/app/lib/wallet-service';
-import { stacksNetworks } from '@/lib/appkit-config';
+import { stellarNetworks } from '@/lib/appkit-config';
 
 export function NetworkSwitcher() {
   const { switchNetwork, caipNetwork } = useAppKitNetwork();
@@ -26,11 +26,8 @@ export function NetworkSwitcher() {
     setError(null);
 
     try {
-      const targetNetwork = network === 'mainnet' ? stacksNetworks.mainnet : stacksNetworks.testnet;
-      // @ts-expect-error – stacksNetworks returns a Stacks-specific CaipNetwork shape that
-      // is structurally compatible with AppKit's switchNetwork parameter but not
-      // assignable to its declared CaipNetwork union type.
-      await switchNetwork(targetNetwork);
+      const targetNetwork = network === 'mainnet' ? stellarNetworks.mainnet : stellarNetworks.testnet;
+      await (switchNetwork as unknown as (n: typeof targetNetwork) => Promise<void>)(targetNetwork);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Network switch failed';
       setError(message);

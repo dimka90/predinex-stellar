@@ -23,6 +23,12 @@ class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
+        import('@/app/lib/error-reporter').then(({ reportError }) =>
+            reportError(error, {
+                componentStack: errorInfo.componentStack ?? undefined,
+                boundary: 'ErrorBoundary',
+            })
+        );
     }
 
     private handleReset = () => {
